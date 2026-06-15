@@ -2,7 +2,7 @@
 // modulo_5_tendencia.s
 // Rutina ARM64 - Tendencia Acumulada Avanzada
 // Proyecto: Invernadero Inteligente IoT - ACYE1
-// Integrante 5
+// José Fernando Ramírez Ambrocio
 //
 // Lo que hace este modulo:
 //   Analiza como cambia la humedad del suelo a lo largo del tiempo.

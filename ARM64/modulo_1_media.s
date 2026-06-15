@@ -1,6 +1,6 @@
 // ============================================================
 // modulo_1_media.s
-// Integrante 1 - Media Aritmetica Ponderada
+// Alison Melysa Pérez Blanco - Media Aritmetica Ponderada
 // Curso: ACYE1 - Vacaciones Junio 2026
 //
 // Leo la columna que el usuario seleccione desde el dashboard.

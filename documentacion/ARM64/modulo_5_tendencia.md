@@ -5,7 +5,7 @@
 * **Proyecto:** Invernadero Inteligente IoT
 * **Curso:** Arquitectura y Organización de Computadoras y Ensambladores 1
 * **Archivo fuente:** `modulo_5_tendencia.s`
-* **Responsable:** ______________________
+* **Responsable:** José Fernando Ramírez Ambrocio
 * **Variable analizada:** Columna seleccionada por el usuario
 * **Cantidad de datos procesados:** 30 registros
 

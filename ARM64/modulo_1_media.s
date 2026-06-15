@@ -81,18 +81,19 @@ _start: //es lo primero que se ejecuta
     // un puntero al string de argv[1] (ej: "6" para GAS)
     // Si no viene argumento usamos columna 2 (TEMP) por defecto
     // --------------------------------------------------------
-    ldr x0, [sp]            // x0 = argc carga el valor de sp en x0 (valor predeterminado)
+    ldr x0, [sp]            // x0 = argc carga el valor de sp en x0 nos dice cantidad de argumentos (si llego columna o solo nombre)
     cmp x0, #2              // es decir el dos indica si viene indicado el numero de columna (compara)
     blt usar_default_1      // si es menor a 2 se va al valor predeterminado
 
-    ldr x0, [sp, #16]       //  a sp le suma 16 bytes y lo guarda en x0
-    bl  ascii_a_int         // convierte el string a numero entero en x0
-    b   llamar_leer_1       // ir a llamar leer_datos con ese numero
+    ldr x0, [sp, #16]       //  a sp le suma 16 bytes y lo guarda en x0 (aqui es donde esta el numero de columna)
+    //los corchetes nos ayudan a ir a la direccion y extraer el contenido de ahi
+    bl  ascii_a_int         // convierte el string a numero entero en x0, bl llama a una funcion
+    b   llamar_leer_1       // ir a llamar leer_datos con ese numero es decir salta hasta esta parte
 
 usar_default_1:
     mov x0, #2              // default: columna 2 = TEMP (1-based en nuevo utils)
 
-llamar_leer_1:
+llamar_leer_1: //solo marca donde se inicia el programa luego del salto de arriba
     // x0 ya tiene el numero de columna correcto
     // leer_datos llena el arreglo datos[] con los 30 valores de esa columna
     bl leer_datos
@@ -100,13 +101,15 @@ llamar_leer_1:
     // --------------------------------------------------------
     // CALCULO de media ponderada con pesos Wi = 1, 2, 3 ... 30
     // x19 = puntero a datos[]
-    // x20 = SUM_X  (suma simple de todos los datos)
-    // x21 = indice i, va de 0 a 29
+    // x20 = SUM_X  (suma simple de todos los datos) (no sirve en la formula)
+    // x21 = indice i, va de 0 a 29, indica en que dato voy
     // x22 = suma_ponderada S(Xi * Wi)
     // x23 = suma_pesos S(Wi) = 465
     // x24 = peso actual Wi, arranca en 1
     // --------------------------------------------------------
-    adr x19, datos
+    adr x19, datos //adr sirve para obtener la direccion de algo
+
+    // inicializan con el valor dado 
     mov x20, #0
     mov x21, #0
     mov x22, #0
@@ -114,17 +117,18 @@ llamar_leer_1:
     mov x24, #1
 
 loop_media:
-    cmp x21, #30
-    beq fin_media
+    cmp x21, #30 //compara el x21 con el valor 30, cuando llega a 30 sale del loop 
+    beq fin_media //salta a esto si fueron iguales
 
-    ldr x25, [x19, x21, lsl #3]    // cargo datos[i]
-    add x20, x20, x25              // SUM_X += datos[i]
+    ldr x25, [x19, x21, lsl #3]    // (lsl 3 multipica por 8 bytes) x25 guarda el dato actual 
+    // x19 + (x21 × 8)  =  inicio de datos[] + posición del dato actual 
+    add x20, x20, x25              // suma dato actual a sumx x20=x20+x25, es el resultado de SUM_X
     mul x26, x25, x24              // Xi * Wi
-    add x22, x22, x26              // suma_ponderada += Xi * Wi
+    add x22, x22, x26              // suma_ponderada S(Xi * Wi)
     add x23, x23, x24              // suma_pesos += Wi
     add x21, x21, #1               // i++
     add x24, x24, #1               // Wi++
-    b loop_media
+    b loop_media //le dice que se vaya aca y ejecute desde ahi 
 
 fin_media:
     // MEDIA_PONDERADA = suma_ponderada / suma_pesos
@@ -134,14 +138,15 @@ fin_media:
     // ARMAR EL TEXTO en buffer_salida
     // x9 marca hasta donde hemos escrito en el buffer
     // --------------------------------------------------------
-    mov x9, #0
+    mov x9, #0 // x9 registro que lleva la cuenta de cuántos bytes se han escrito en buffer_salida
+    // empieza en 0 porque esta vacio 
 
-    bl copiar_module
+    bl copiar_module 
     bl copiar_total
 
     // SUM_X=valor
-    bl copiar_label_sumx
-    mov x0, x20
+    bl copiar_label_sumx //Copia el texto "SUM_X=" al buffer.
+    mov x0, x20 // copia el valor de x20 en x0
     adr x1, buf_sumx
     bl int_a_ascii
     adr x0, buf_sumx

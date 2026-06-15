@@ -15,23 +15,45 @@
 // Los datos quedan en el arreglo datos[] de utils.s
 // ============================================================
 
-.extern leer_datos
-.extern int_a_ascii
-.extern datos
+// ------------------------------------------------------------
+// DECLARACION DE SIMBOLOS EXTERNOS
+// Estas funciones y variables estan definidas en utils.s
+// Se declaran con .extern para que el linker las pueda encontrar
+// al momento de ensamblar y enlazar el proyecto completo
+// ------------------------------------------------------------
+.extern leer_datos      // funcion que llena datos[] leyendo el CSV
+.extern int_a_ascii     // funcion que convierte un entero a string ASCII
+.extern datos           // arreglo global donde leer_datos deposita los 30 valores
 
+
+// ------------------------------------------------------------
+// SECCION .data
+// Aqui van todas las cadenas y constantes que tienen valor
+// desde el inicio del programa (datos inicializados)
+// ------------------------------------------------------------
 .section .data
 
+// Nombre del archivo de salida donde se guardan los resultados
 nombre_salida:
     .asciz "resultado_media.txt"
 
+//-------------------------------------------------------------
+//.asciz guarda un texto en memoria y automáticamente le agrega un cero al final 
+//(ese cero se llama null terminator y le dice al programa "aquí termina el texto")
+//-------------------------------------------------------------
+
 linea_module:
-    .asciz "MODULE=WEIGHTED_MEAN\n"
-linea_module_len = . - linea_module
+    .asciz "MODULE=WEIGHTED_MEAN\n" // Guarda el texto con salto de linea
+linea_module_len = . - linea_module //El punto . significa "la posición actual en memoria"
+// Calcula cuantos bytes ocupa el texto (posicion actual menos posicion inicial)
+// Se necesita para decirle al sistema operativo cuantos caracteres escribir
 
 linea_total:
     .asciz "TOTAL_VALUES=30\n"
 linea_total_len = . - linea_total
 
+
+// Sin \n porque el numero se pega en la misma linea:
 label_sumx:     .asciz "SUM_X="
 label_sumx_len = . - label_sumx
 
@@ -41,35 +63,36 @@ label_wsum_len = . - label_wsum
 label_mean:     .asciz "WEIGHTED_MEAN="
 label_mean_len = . - label_mean
 
-.section .bss
+.section .bss //reservar espacio vacio en memoria 
 
-buffer_salida:  .skip 512
+buffer_salida:  .skip 512 //reserva ese espacio vacio para el archivo de salida (bytes)
 buf_sumx:   .skip 32
 buf_wsum:   .skip 32
 buf_media:  .skip 32
+//espacio temporal donde se convierte cada numero a texto 
 
-.section .text
-.global _start
+.section .text //inicio codigo ejecutable 
+.global _start //el programa arranca aqui
 
-_start:
+_start: //es lo primero que se ejecuta
     // --------------------------------------------------------
     // LECTURA DE argv[1]: el numero de columna que manda Python
     // Al arrancar el programa, [sp] tiene argc y [sp+16] tiene
     // un puntero al string de argv[1] (ej: "6" para GAS)
     // Si no viene argumento usamos columna 2 (TEMP) por defecto
     // --------------------------------------------------------
-    ldr x0, [sp]            // x0 = argc
-    cmp x0, #2              // hay al menos 1 argumento?
-    blt .usar_default_1     // no -> ir al default
+    ldr x0, [sp]            // x0 = argc carga el valor de sp en x0 (valor predeterminado)
+    cmp x0, #2              // es decir el dos indica si viene indicado el numero de columna (compara)
+    blt usar_default_1      // si es menor a 2 se va al valor predeterminado
 
-    ldr x0, [sp, #16]       // x0 = puntero a argv[1] (string "2","3","6"...)
-    bl  ascii_a_int          // convierte el string a numero entero en x0
-    b   .llamar_leer_1       // ir a llamar leer_datos con ese numero
+    ldr x0, [sp, #16]       //  a sp le suma 16 bytes y lo guarda en x0
+    bl  ascii_a_int         // convierte el string a numero entero en x0
+    b   llamar_leer_1       // ir a llamar leer_datos con ese numero
 
-.usar_default_1:
+usar_default_1:
     mov x0, #2              // default: columna 2 = TEMP (1-based en nuevo utils)
 
-.llamar_leer_1:
+llamar_leer_1:
     // x0 ya tiene el numero de columna correcto
     // leer_datos llena el arreglo datos[] con los 30 valores de esa columna
     bl leer_datos
@@ -90,9 +113,9 @@ _start:
     mov x23, #0
     mov x24, #1
 
-.loop_media:
+loop_media:
     cmp x21, #30
-    beq .fin_media
+    beq fin_media
 
     ldr x25, [x19, x21, lsl #3]    // cargo datos[i]
     add x20, x20, x25              // SUM_X += datos[i]
@@ -101,9 +124,9 @@ _start:
     add x23, x23, x24              // suma_pesos += Wi
     add x21, x21, #1               // i++
     add x24, x24, #1               // Wi++
-    b .loop_media
+    b loop_media
 
-.fin_media:
+fin_media:
     // MEDIA_PONDERADA = suma_ponderada / suma_pesos
     udiv x27, x22, x23             // x27 = WEIGHTED_MEAN
 
@@ -113,35 +136,35 @@ _start:
     // --------------------------------------------------------
     mov x9, #0
 
-    bl .copiar_module
-    bl .copiar_total
+    bl copiar_module
+    bl copiar_total
 
     // SUM_X=valor
-    bl .copiar_label_sumx
+    bl copiar_label_sumx
     mov x0, x20
     adr x1, buf_sumx
     bl int_a_ascii
     adr x0, buf_sumx
-    bl .copiar_cadena
-    bl .copiar_newline
+    bl copiar_cadena
+    bl copiar_newline
 
     // WEIGHT_SUM=valor
-    bl .copiar_label_wsum
+    bl copiar_label_wsum
     mov x0, x23
     adr x1, buf_wsum
     bl int_a_ascii
     adr x0, buf_wsum
-    bl .copiar_cadena
-    bl .copiar_newline
+    bl copiar_cadena
+    bl copiar_newline
 
     // WEIGHTED_MEAN=valor
-    bl .copiar_label_mean
+    bl copiar_label_mean
     mov x0, x27
     adr x1, buf_media
     bl int_a_ascii
     adr x0, buf_media
-    bl .copiar_cadena
-    bl .copiar_newline
+    bl copiar_cadena
+    bl copiar_newline
 
     // --------------------------------------------------------
     // ESCRIBIR AL ARCHIVO resultado_media.txt
@@ -179,103 +202,103 @@ _start:
 
 // ---- funciones auxiliares para copiar texto al buffer ----
 
-.copiar_module:
+copiar_module:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
     adr x1, linea_module
-.lp_mod:
+lp_mod:
     ldrb w2, [x1]
     cmp w2, #0
-    beq .fin_mod
+    beq fin_mod
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b .lp_mod
-.fin_mod:
+    b lp_mod
+fin_mod:
     ldp x29, x30, [sp], #16
     ret
 
-.copiar_total:
+copiar_total:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
     adr x1, linea_total
-.lp_tot:
+lp_tot:
     ldrb w2, [x1]
     cmp w2, #0
-    beq .fin_tot
+    beq fin_tot
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b .lp_tot
-.fin_tot:
+    b lp_tot
+fin_tot:
     ldp x29, x30, [sp], #16
     ret
 
-.copiar_label_sumx:
+copiar_label_sumx:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
     adr x1, label_sumx
-.lp_lsx:
+lp_lsx:
     ldrb w2, [x1]
     cmp w2, #0
-    beq .fin_lsx
+    beq fin_lsx
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b .lp_lsx
-.fin_lsx:
+    b lp_lsx
+fin_lsx:
     ldp x29, x30, [sp], #16
     ret
 
-.copiar_label_wsum:
+copiar_label_wsum:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
     adr x1, label_wsum
-.lp_lws:
+lp_lws:
     ldrb w2, [x1]
     cmp w2, #0
-    beq .fin_lws
+    beq fin_lws
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b .lp_lws
-.fin_lws:
+    b lp_lws
+fin_lws:
     ldp x29, x30, [sp], #16
     ret
 
-.copiar_label_mean:
+copiar_label_mean:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
     adr x1, label_mean
-.lp_lmn:
+lp_lmn:
     ldrb w2, [x1]
     cmp w2, #0
-    beq .fin_lmn
+    beq fin_lmn
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b .lp_lmn
-.fin_lmn:
+    b lp_lmn
+fin_lmn:
     ldp x29, x30, [sp], #16
     ret
 
-.copiar_cadena:
+copiar_cadena:
     stp x29, x30, [sp, #-16]!
     mov x1, x0
     adr x0, buffer_salida
-.lp_cad:
+lp_cad:
     ldrb w2, [x1]
     cmp w2, #0
-    beq .fin_cad
+    beq fin_cad
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b .lp_cad
-.fin_cad:
+    b lp_cad
+fin_cad:
     ldp x29, x30, [sp], #16
     ret
 
-.copiar_newline:
+copiar_newline:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
     mov w2, #10

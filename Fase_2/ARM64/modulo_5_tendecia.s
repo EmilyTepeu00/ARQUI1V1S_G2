@@ -159,3 +159,56 @@ fin_calculo:
     ldr x1, =str_nl              //Se escribe un salto de linea
     bl write_str                 //Se escribe un salto de linea
  
+    ldr x1, =str_incr             //Se escribe el total de incrementos
+    bl write_str                  //Se convierte el total de incrementos a texto para escribirlo
+    mov x0, x10                   //Se mueve el total de incrementos a x0 para convertirlo a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para convertir el total de incrementos a texto
+    bl int_a_ascii                //Se convierte el total de incrementos a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para escribir el total de incrementos
+    bl write_str                  //Se escribe el total de incrementos
+    ldr x1, =str_nl               //Se escribe un salto de linea
+    bl write_str                  //Se escribe un salto de linea
+ 
+    ldr x1, =str_decr             //Se escribe el total de decrementos
+    bl write_str                  //Se convierte el total de decrementos a texto para escribirlo
+    mov x0, x11                   //Se mueve el total de decrementos a x0 para convertirlo a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para convertir el total de decrementos a texto
+    bl int_a_ascii                //Se convierte el total de decrementos a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para escribir el total de decrementos
+    bl write_str                  //Se escribe el total de decrementos
+    ldr x1, =str_nl               //Se escribe un salto de linea
+    bl write_str                  //Se escribe un salto de linea
+ 
+    ldr x1, =str_max_up           //Se escribe la racha maxima de incrementos
+    bl write_str                  //Se convierte la racha maxima de incrementos a texto para escribirla
+    mov x0, x13                   //Se mueve la racha maxima de incrementos a x0 para convertirla a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para convertir la racha maxima de incrementos a texto
+    bl int_a_ascii                //Se convierte la racha maxima de incrementos a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para escribir la racha maxima de incrementos
+    bl write_str                  //Se escribe la racha maxima de incrementos
+    ldr x1, =str_nl               //Se escribe un salto de linea
+    bl write_str                  //Se escribe un salto de linea
+ 
+    ldr x1, =str_max_down         //Se escribe la racha maxima de decrementos
+    bl write_str                  //Se convierte la racha maxima de decrementos a texto para escribirla
+    mov x0, x15                   //Se mueve la racha maxima de decrementos a x0 para convertirla a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para convertir la racha maxima de decrementos a texto
+    bl int_a_ascii                //Se convierte la racha maxima de decrementos a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para escribir la racha maxima de decrementos
+    bl write_str                  //Se escribe la racha maxima de decrementos
+    ldr x1, =str_nl               //Se escribe un salto de linea
+    bl write_str                  //Se escribe un salto de linea
+ 
+    ldr x1, =str_accum            //Se escribe la diferencia acumulada
+    bl write_str                  //Se convierte la diferencia acumulada a texto para escribirla
+ 
+    cmp x16, #0                   //Se revisa si la diferencia acumulada es negativa o positiva para escribir el signo correspondiente
+    bge accum_no_negativo         //Si es positiva, se escribe la diferencia acumulada
+ 
+    ldr x1, =str_minus            //Si es negativa, se escribe el signo negativo
+    bl write_str                  //Se convierte la diferencia acumulada a texto para escribirla
+    neg x0, x16                   //Se convierte la diferencia acumulada a positiva para escribirla
+    b accum_convertir             //Se convierte la diferencia acumulada a texto para escribirla
+ 
+accum_no_negativo:                //Si es positiva, se escribe la diferencia acumulada
+    mov x0, x16                   //Se mueve la diferencia acumulada a x0 para convertirla a texto

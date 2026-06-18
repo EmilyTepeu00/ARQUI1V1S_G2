@@ -212,3 +212,71 @@ fin_calculo:
  
 accum_no_negativo:                //Si es positiva, se escribe la diferencia acumulada
     mov x0, x16                   //Se mueve la diferencia acumulada a x0 para convertirla a texto
+
+accum_convertir:                //Se convierte la diferencia acumulada a texto para escribirla
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para convertir
+    bl int_a_ascii                //Se convierte la diferencia acumulada a texto
+    ldr x1, =num_buffer           //Se carga la direccion del buffer para escribir
+    bl write_str                  //Se escribe la diferencia acumulada
+    ldr x1, =str_nl               //Se escribe un salto de linea
+    bl write_str                  //Se escribe un salto de linea
+
+    ldr x1, =str_trend            //Se escribe la tendencia general
+    bl write_str                  //Se revisa la tendencia general para escribirla
+
+    cmp x16, #0                    //Si la diferencia acumulada es positiva, la tendencia es al alza
+    bgt escribir_up
+    blt escribir_down              //Si la diferencia acumulada es negativa, la tendencia es a la baja
+
+    ldr x1, =str_stable            //Si la diferencia acumulada es cero, la tendencia es estable
+    bl write_str
+    b cerrar_archivo
+
+    trend_up:
+    ldr x1, =str_up                //Escribe la tendencia al alza
+    bl write_str                   //Escribe la tendencia al alza
+    b cerrar_archivo               //Termina el programa cerrando el archivo de salida
+
+    trend_down:
+    ldr x1, =str_down              //Escribe la tendencia a la baja
+    bl write_str                   //Escribe la tendencia a la baja
+    
+cerrar_archivo:
+    mov x0, x23                    //Se cierra el archivo de salida
+    mov x8, #57
+    svc #0
+
+    mov sp, x27                    //Se restaura el stack pointer antes de terminar el programa
+    b salir_ok
+no_argumento:
+    mov x0, #1                     //Si no se ingreso un numero de columna o el numero de columna es menor a 2, se muestra un mensaje de error
+    ldr x1, =msg_no_arg            //Se carga la direccion del mensaje de error
+    mov x2, msg_no_arg_len         //Se carga la longitud del mensaje de error
+    mov x8, #64                    //Numero de syscall para escribir en pantalla
+    svc #0                         //Se hace la syscall para escribir el mensaje de error en pantalla
+    b salir_error                  //Termina el programa con un codigo de error
+
+write_str:
+    mov x2, #0                     //Se calcula la longitud de la cadena de texto a escribir
+
+wrte_str_strlen:
+    ldrb w0, [x1, x2]                //Se carga un byte de la cadena de texto
+    cbz w0, write_str_done           //Si el byte es cero, se ha
+    add x2, x2, #1                   //Si el byte no es cero, se incrementa la longitud de la cadena de texto
+    b wrte_str_strlen                //Se repite el proceso para calcular la longitud de la
+
+write_str_done:
+    mov x0, x23                    //Se mueve el descriptor del archivo de salida a x0 para escribir en el archivo
+    mov x8, #64                    //Numero de syscall para escribir en archivos
+    svc #0                         //Se hace la syscall para escribir la cadena de texto en el archivo de salida
+    ret
+
+salir_ok:
+    mov x0, #0                     //Termina el programa con un codigo de exito
+    mov x8, #93
+    svc #0
+
+salir_error:
+    mov x0, #1                     //Termina el programa con un codigo de error
+    mov x8, #93
+    svc #0

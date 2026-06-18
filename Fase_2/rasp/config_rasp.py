@@ -54,7 +54,7 @@ PIN_BTN_LUCES  = 18   # Botón 3 — luces manual
 PIN_BTN_RESET  = 20   # Botón 4 — silenciar alarma / reset
 
 # LCD I2C
-LCD_ADDRESS    = 0x27 # Dirección I2C (probar 0x3F si no funciona)
+LCD_ADDRESS    = 0x27 # Dirección I2C
 LCD_COLS       = 16
 LCD_ROWS       = 2
 

@@ -1,8 +1,3 @@
-"""
-rasp_main.py — Programa IoT principal de la Raspberry Pi 4
-Lee sensores, controla actuadores, publica por MQTT.
-"""
-
 import time
 import threading
 import signal
@@ -52,7 +47,6 @@ def aplicar_control(temp, suelo1, suelo2, luz, gas_valor, gas_estado):
     if estado["modo"] == "AUTOMATICO":
 
         if gas_estado == "GAS_EMERGENCIA":
-            # en emergencia el ventilador ya fue encendido arriba, no tocarlo
             pass
         elif gas_estado == "GAS_ADVERTENCIA" or temp > cfg.UMBRAL_TEMP_ALTA:
             estado["ventilador"] = True
@@ -208,7 +202,6 @@ def procesar_comando(payload):
             estado["modo"] = valor
 
     elif accion == "RESET":
-        # solo ejecutar si vino del dashboard, no re-publicar MQTT
         estado["alarma"]  = False
         estado["global"]  = "NORMAL"
         estado["modo"]    = "AUTOMATICO"

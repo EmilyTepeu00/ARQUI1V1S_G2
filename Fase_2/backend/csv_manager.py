@@ -36,8 +36,6 @@ def agregar_fila(temp, hum_aire, hum_suelo1, hum_suelo2, luz, gas, riego1, riego
         suelo2_num = 0 if hum_suelo2 == "SECO" else 1
         luz_num    = 0 if luz == "BAJO" else 1
 
-        # temp * 10 para preservar el decimal como entero
-        # ej: 24.6 -> 246, los modulos ARM64 trabajan con enteros
         fila = [_id_counter, int(round(float(temp) * 10)), int(hum_aire),
                 suelo1_num, suelo2_num, luz_num, int(gas),
                 int(riego1), int(riego2)]
@@ -70,7 +68,6 @@ def leer_csv():
         with open(config.CSV_FILE, "r") as f:
             for row in csv.DictReader(f):
                 if "$" not in str(row):
-                    # Convertir TEMP de vuelta a valor real dividiendo entre 10
                     if "TEMP" in row:
                         try:
                             row["TEMP"] = round(int(row["TEMP"]) / 10, 1)

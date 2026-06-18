@@ -10,7 +10,6 @@ RESULTADOS_DIR = ARM64_DIR
 CSV_BACKEND    = os.path.join(os.path.dirname(__file__), "lecturas.csv")
 CSV_ARM64      = os.path.join(ARM64_DIR, "lecturas.csv")
 
-# Mapeo de nombre de variable -> indice de columna en lecturas.csv
 # Cabecera: ID,TEMP,HUM_AIRE,HUM_SUELO_1,HUM_SUELO_2,LUZ,GAS,RIEGO_1,RIEGO_2
 #           0   1     2         3            4          5    6     7       8
 VARIABLES = {

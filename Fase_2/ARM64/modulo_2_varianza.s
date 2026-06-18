@@ -1,28 +1,16 @@
-// ===========================================================
 // modulo_2_varianza.s
 // Jackeline Stephany Rivera Argueta - 202401685
 // Modulo 2: Varianza y Desviacion Estandar
-// Curso: ACYE1 - Segundo Semestre 2026
 //
-// Lee la columna que el usuario seleccione desde el dashboard.
-// El numero de columna llega como argv[1] cuando Python ejecuta
-// el binario. Si no viene argumento, usa columna 3 (HUM_AIRE).
-//
-// Formulas:
-//   MEDIA = suma de todo / 30
-//   VAR   = suma de (dato-media)^2 / 30
-//   DESV  = raiz(VAR)
-//
-// Archivo de entrada:  lecturas.csv
-// Archivo de salida:   resultado_varianza.txt
-// ===========================================================
+// MEDIA = suma / cantidad
+// VAR   = suma((dato-media)^2) / cantidad
+// DESV  = raiz(VAR)
 
-.extern leer_datos
+.extern read_column_to_stack
 .extern int_a_ascii
 .extern ascii_a_int
-.extern datos
 
-.section .data
+.data
 
 nombre_salida:
     .asciz "resultado_varianza.txt"
@@ -36,150 +24,119 @@ linea_total:
 linea_total_len = . - linea_total
 
 label_mean:     .asciz "MEAN="
-label_mean_len = . - label_mean
-
 label_var:      .asciz "VARIANCE="
-label_var_len = . - label_var
-
 label_desv:     .asciz "STD_DEV="
-label_desv_len = . - label_desv
 
-newline:        .asciz "\n"
-newline_len = . - newline
+.bss
 
-.comm buffer_salida, 512, 8
-.comm buf_media, 32, 8
-.comm buf_var,   32, 8
-.comm buf_desv,  32, 8
+buffer_salida: .skip 512
+buf_media:     .skip 32
+buf_var:       .skip 32
+buf_desv:      .skip 32
 
-.section .text
+.text
 .global _start
 
 _start:
-    // --------------------------------------------------------
-    // LECTURA DE argv[1]: el numero de columna que manda Python
-    // [sp]    = argc
-    // [sp+16] = puntero al string de argv[1] (ej: "7" para GAS)
-    // Si no viene argumento usamos columna 3 (HUM_AIRE) por defecto
-    // --------------------------------------------------------
-    ldr x0, [sp]            // x0 = argc
-    cmp x0, #2              // hay al menos 1 argumento?
-    blt .usar_default_2     // no -> ir al default
+    // leer argumento de columna
+    ldr x0, [sp, #16]
+    bl ascii_a_int
 
-    ldr x0, [sp, #16]       // x0 = puntero a argv[1]
-    bl  ascii_a_int          // convierte el string a numero entero en x0
-    b   .llamar_leer_2
+    mov x11, x0
+    bl read_column_to_stack
 
-.usar_default_2:
-    mov x0, #3              // default: columna 3 = HUM_AIRE
+    // x0 = inicio datos
+    // x1 = limite superior
+    // x2 = cantidad
+    // x3 = restaurar stack
+    mov x24, x0
+    mov x25, x1
+    mov x26, x3
+    mov x27, x2              // x27 = cantidad real de datos leidos
 
-.llamar_leer_2:
-    // leer_datos llena datos[] con los 30 valores de la columna x0
-    bl leer_datos
 
-    // --------------------------------------------------------
-    // PASO 1: calcular la media (MEDIA = suma / 30)
-    // x19 = puntero a datos[]
-    // x20 = acumulador de suma
-    // x21 = contador i
-    // --------------------------------------------------------
-    adr x19, datos
-    mov x20, #0
-    mov x21, #0
+//calcular media
+    mov x6, x24
+    mov x7, #0
 
-loop_suma:
-    cmp x21, #30
-    beq fin_suma
+suma_loop:
+    cmp x6, x25
+    beq suma_fin
 
-    ldr x22, [x19, x21, lsl #3]
-    add x20, x20, x22
-    add x21, x21, #1
-    b loop_suma
+    ldr x9, [x6], #16         // cada dato ocupa 16 bytes en la pila
+    add x7, x7, x9
+    b suma_loop
 
-fin_suma:
-    mov x23, #30
-    udiv x24, x20, x23      // x24 = MEDIA
+suma_fin:
+    udiv x12, x7, x27          // x12 = MEDIA
 
-    // --------------------------------------------------------
-    // PASO 2: calcular la varianza VAR = suma((dato-media)^2) / 30
-    // Usamos valor absoluto para evitar negativos antes de elevar
-    // --------------------------------------------------------
-    mov x25, #0             // x25 = acumulador de suma de cuadrados
-    mov x21, #0
 
-loop_varianza:
-    cmp x21, #30
-    beq fin_varianza
+//Calcular Varianza
+    mov x6, x24
+    mov x13, #0                 // acumulador de cuadrados
 
-    ldr x22, [x19, x21, lsl #3]
+var_loop:
+    cmp x6, x25
+    beq var_fin
 
-    // calcular |dato - media| sin negativos
-    cmp x22, x24
-    bge dato_mayor
+    ldr x9, [x6], #16
 
-    sub x26, x24, x22       // dato < media: diferencia = media - dato
-    b elevar_cuadrado
+    sub x14, x9, x12
+    mul x15, x14, x14
+    add x13, x13, x15
 
-dato_mayor:
-    sub x26, x22, x24       // dato >= media: diferencia = dato - media
+    b var_loop
 
-elevar_cuadrado:
-    mul x27, x26, x26       // cuadrado = diferencia^2
-    add x25, x25, x27       // acumulo
+var_fin:
+    udiv x16, x13, x27          // x16 = VARIANZA
 
-    add x21, x21, #1
-    b loop_varianza
 
-fin_varianza:
-    udiv x28, x25, x23      // x28 = VARIANZA = suma_cuadrados / 30
+//Calcular desviacion estandar
+    mov x0, x16
+    bl raiz_cuadrada
+    mov x17, x0                  // x17 = STD_DEV
 
-    // --------------------------------------------------------
-    // PASO 3: desviacion estandar = raiz(varianza)
-    // Metodo Newton-Raphson para raiz cuadrada entera
-    // --------------------------------------------------------
-    mov x0, x28
-    bl raiz_cuadrada        // resultado en x0
-    mov x29, x0             // x29 = STD_DEV
+    // restaurar el stack 
+    mov sp, x26
 
-    // --------------------------------------------------------
-    // ARMAR EL TEXTO en buffer_salida usando x9 como posicion
-    // --------------------------------------------------------
+    // generar salida
     adr x0, buffer_salida
     mov x9, #0
 
     bl copiar_module
     bl copiar_total
 
-    // MEAN=valor
     bl copiar_label_mean
-    mov x0, x24
+    mov x23, x9
+    mov x0, x12
     adr x1, buf_media
     bl int_a_ascii
+    mov x9, x23
     adr x0, buf_media
     bl copiar_cadena
     bl copiar_newline
 
-    // VARIANCE=valor
     bl copiar_label_var
-    mov x0, x28
+    mov x23, x9
+    mov x0, x16
     adr x1, buf_var
     bl int_a_ascii
+    mov x9, x23
     adr x0, buf_var
     bl copiar_cadena
     bl copiar_newline
 
-    // STD_DEV=valor
     bl copiar_label_desv
-    mov x0, x29
+    mov x23, x9
+    mov x0, x17
     adr x1, buf_desv
     bl int_a_ascii
+    mov x9, x23
     adr x0, buf_desv
     bl copiar_cadena
     bl copiar_newline
 
-    // --------------------------------------------------------
-    // ESCRIBIR AL ARCHIVO resultado_varianza.txt
-    // --------------------------------------------------------
+    // escribir archivo
     mov x8, #56
     mov x0, #-100
     adr x1, nombre_salida
@@ -198,7 +155,6 @@ fin_varianza:
     mov x0, x10
     svc #0
 
-    // MOSTRAR EN TERMINAL
     mov x8, #64
     mov x0, #1
     adr x1, buffer_salida
@@ -209,12 +165,7 @@ fin_varianza:
     mov x0, #0
     svc #0
 
-
-// ============================================================
-// raiz_cuadrada: Newton-Raphson para raiz entera
-// Entrada: x0 = numero
-// Salida:  x0 = raiz entera
-// ============================================================
+// Newton-Raphson
 raiz_cuadrada:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
@@ -226,7 +177,7 @@ raiz_cuadrada:
     cmp x19, #0
     beq raiz_es_cero
 
-    lsr x20, x19, #1        // estimado inicial = numero / 2
+    lsr x20, x19, #1
 
     cmp x20, #0
     beq raiz_es_uno
@@ -234,10 +185,10 @@ raiz_cuadrada:
 loop_newton:
     udiv x0, x19, x20
     add x0, x0, x20
-    lsr x0, x0, #1          // nuevo estimado = (estimado + num/estimado) / 2
+    lsr x0, x0, #1
 
     cmp x0, x20
-    bge raiz_lista          // si no mejora, convergio
+    bge raiz_lista
 
     mov x20, x0
     b loop_newton
@@ -259,8 +210,6 @@ fin_raiz:
     ldp x29, x30, [sp], #32
     ret
 
-
-// ---- funciones auxiliares para copiar texto al buffer ----
 
 copiar_module:
     stp x29, x30, [sp, #-16]!

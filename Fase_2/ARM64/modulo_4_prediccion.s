@@ -20,8 +20,7 @@
    ====================================================================================
 */
 
-.extern leer_datos
-.extern datos
+.extern read_column_to_stack
 .extern int_a_ascii
 .extern ascii_a_int
 
@@ -75,24 +74,26 @@ _start:
     mov x0, #2              // default: columna 2 = TEMP
 
 .llamar_leer_4:
-    // leer_datos llena datos[] con los 30 valores de la columna x0
-    bl  leer_datos
+    // read_column_to_stack lee la columna x11 del CSV y deja los
+    // datos guardados en el stack (igual que en modulo_1_media.s)
+    mov x11, x0
+    bl  read_column_to_stack
+    mov x28, x3             // x28 = donde restaurar el stack al terminar
+    mov x26, x2             // x26 = N (cantidad real de datos)
+    sub x9, x1, #16         // x9 = direccion del dato mas viejo (datos[0])
+    ldr x19, [x9]           // x19 = valor inicial
 
-    // --------------------------------------------------------
-    // CALCULOS de prediccion lineal simple
-    // x19 = valor inicial (datos[0])
-    // x22 = valor final   (datos[29])
-    // x23 = diferencia total
-    // x24 = promedio de cambio (puede ser negativo)
-    // x25 = prediccion = final + promedio
-    // --------------------------------------------------------
-    adr x9,  datos
-    ldr x19, [x9, #0]       // datos[0] = primer valor
-    ldr x22, [x9, #232]     // datos[29] = ultimo valor (29 * 8 = 232)
+    mov x22, x0             // x22 = valor final (x0 ya trae el dato mas reciente)
 
     sub x23, x22, x19       // diferencia total = final - inicial
-    mov x4,  #29            // 29 intervalos entre 30 datos
-    sdiv x24, x23, x4       // promedio de cambio = diferencia / 29
+    sub x4, x26, #1         // x4 = N - 1 intervalos entre N datos
+    cmp x4, #0
+    bne .dividir_4
+    mov x4, #1  
+    
+                // evita division por cero si solo hay 1 dato
+.dividir_4:
+    sdiv x24, x23, x4       // promedio de cambio = diferencia / (N-1)
     add  x25, x22, x24      // prediccion = final + promedio
 
     // --------------------------------------------------------
@@ -113,7 +114,7 @@ _start:
     // \nFINAL_VALUE=valor
     adr x0, lbl_final
     bl  copiar_a_buffer
-    mov x0, x22
+    mov sp, x28             // restaurar el stack, ya no se necesitan los datos
     adr x1, buf_conv
     bl  formatear_numero
     adr x0, buf_conv

@@ -58,8 +58,12 @@ num_buffer:
 
 
  
-// Inicializacion del Programa importando al Utils.s
-.include "utils.s"
+// Inicializacion del Programa 
+//.extern solo para utilizar las funciones q se encuentran dentro del utils.s
+.extern read_column_to_stack 
+.extern int_a_ascii
+.extern ascii_a_int
+.extern atoi_csv
 
 .global _start
 
@@ -225,8 +229,8 @@ accum_convertir:                //Se convierte la diferencia acumulada a texto p
     bl write_str                  //Se revisa la tendencia general para escribirla
 
     cmp x16, #0                    //Si la diferencia acumulada es positiva, la tendencia es al alza
-    bgt escribir_up
-    blt escribir_down              //Si la diferencia acumulada es negativa, la tendencia es a la baja
+    bgt trend_up
+    blt trend_down                 //Si la diferencia acumulada es negativa, la tendencia es a la baja
 
     ldr x1, =str_stable            //Si la diferencia acumulada es cero, la tendencia es estable
     bl write_str

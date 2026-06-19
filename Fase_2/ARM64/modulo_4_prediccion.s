@@ -83,7 +83,7 @@ _start:
     sub x9, x1, #16         // x9 = direccion del dato mas viejo (datos[0])
     ldr x19, [x9]           // x19 = valor inicial
 
-    mov x22, x0             // x22 = valor final (x0 ya trae el dato mas reciente)
+    ldr x22, [x0]           // x22 tendra el valor final
 
     sub x23, x22, x19       // diferencia total = final - inicial
     sub x4, x26, #1         // x4 = N - 1 intervalos entre N datos

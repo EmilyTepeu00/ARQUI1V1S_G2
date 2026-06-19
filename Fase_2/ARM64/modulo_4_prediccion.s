@@ -121,6 +121,7 @@ _start:
     // \nFINAL_VALUE=valor
     adr x0, lbl_final
     bl  copiar_a_buffer
+    mov x0, x22
     mov sp, x28             // restaurar el stack, ya no se necesitan los datos
     adr x1, buf_conv
     bl  formatear_numero

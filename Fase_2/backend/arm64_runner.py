@@ -199,9 +199,10 @@ def correr_pipeline(variable="TEMP"):
 
     import csv_manager
     if not csv_manager.esta_completo():
-        print("[ARM64] Aviso: CSV todavia no tiene 30 lecturas, analizando con los datos disponibles")
+        print(f"[ARM64] Aviso: solo hay {csv_manager.obtener_filas()}/{config.CSV_MAX_ROWS} lecturas, se analiza con los datos disponibles")
 
     variable_upper = variable.upper()
+    
     col_index = VARIABLES.get(variable_upper, 1)
     print(f"[ARM64] Variable seleccionada: {variable_upper} -> columna {col_index}")
 
@@ -217,15 +218,3 @@ def correr_pipeline(variable="TEMP"):
     else:
         print("[ARM64] Sin resultados de archivos .txt")
 
-
-def iniciar_cuando_csv_completo():
-    def _monitor():
-        import time
-        import csv_manager
-        while True:
-            if csv_manager.esta_completo():
-                correr_pipeline()
-                break
-            time.sleep(5)
-    t = threading.Thread(target=_monitor, daemon=True)
-    t.start()

@@ -1,9 +1,12 @@
 # MongoDB
 MONGO_URI = (
-    "mongodb+srv://Invernadero_user:Invernadero2026"
-    "@invernadero-cluster.gdzxx9p.mongodb.net/"
-    "?appName=Invernadero-cluster"
+    "mongodb://Invernadero_user:Invernadero2026"
+    "@ac-3cfmqu1-shard-00-00.gdzxx9p.mongodb.net:27017,"
+    "ac-3cfmqu1-shard-00-01.gdzxx9p.mongodb.net:27017,"
+    "ac-3cfmqu1-shard-00-02.gdzxx9p.mongodb.net:27017"
+    "/Invernadero?authSource=admin&replicaSet=atlas-1ire5n-shard-0&tls=true"
 )
+
 MONGO_DB_NAME = "Invernadero"
 
 COL_SENSOR_READINGS = "sensor_readings"
@@ -49,8 +52,10 @@ UMBRAL_TEMP_ALTA       = 32.0
 UMBRAL_HUMEDAD_BAJA    = 40
 UMBRAL_HUMEDAD_NORMAL  = 70
 UMBRAL_LUZ_BAJA        = 300
-UMBRAL_GAS_ADVERTENCIA = 80
-UMBRAL_GAS_EMERGENCIA  = 90
+UMBRAL_GAS_ADVERTENCIA = 70
+UMBRAL_GAS_EMERGENCIA  = 75
+SUELO_VALOR_SECO   = 1023
+SUELO_VALOR_HUMEDO = 0
 
 # Flask
 FLASK_HOST = "0.0.0.0"

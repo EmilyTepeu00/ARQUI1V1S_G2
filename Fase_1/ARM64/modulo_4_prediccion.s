@@ -2,34 +2,25 @@
                         Modulo 4: Prediccion de Proximo Valor
    ====================================================================================
     modulo_4_prediccion.s
-    Módulo 4: Predicción de Próximo Valor
-    Proyecto: Invernadero Inteligente IoT - ACYE1
-    Responsable: Diana Myriam Priscila Santizo Cáceres
-
-    Entrada            : lecturas.csv
-    Salida             : resultado_prediccion.txt
+    Responsable: Diana Myriam Priscila Santizo Caceres
 
     Lee la columna que el usuario seleccione desde el dashboard.
     El numero de columna llega como argv[1] cuando Python ejecuta
     el binario. Si no viene argumento, usa columna 2 (TEMP).
 
-     Modelo de Predicción:
-    - Se calcula la diferencia entre cada par de valores consecutivos.
-    - Se promedia esta diferencia para obtener una tendencia.
-    - El próximo valor se predice sumando esta tendencia al último valor.
-
-    Cálculos Realizados: 
+    Calculos:
     1. Valor inicial (datos[0])
     2. Valor final   (datos[29])
     3. Diferencia total = Final - Inicial
     4. Promedio de cambio = Diferencia / 29
-    5. Predicción = Final + Promedio_cambio
+    5. Prediccion = Final + Promedio_cambio
 
+    Archivo de entrada: lecturas.csv
+    Archivo de salida:  resultado_prediccion.txt
    ====================================================================================
 */
 
-.extern leer_datos
-.extern datos
+.extern read_column_to_stack
 .extern int_a_ascii
 .extern ascii_a_int
 
@@ -47,7 +38,8 @@
 
 nombre_salida:  .asciz "resultado_prediccion.txt"
 
-// Textos fijos en formato .asciz
+// textos fijos del archivo de salida
+// los \n estan dentro del string para que queden bien formateados
 lbl_header: .asciz "MODULE=PREDICTION\nINITIAL_VALUE="
 lbl_final:  .asciz "\nFINAL_VALUE="
 lbl_diff:   .asciz "\nTOTAL_DIFF="
@@ -56,8 +48,9 @@ lbl_next:   .asciz "\nNEXT_VALUE="
 lbl_nl:     .asciz "\n"
 
 .section .bss
-buffer_salida:  .skip 512    // Buffer donde se armara el archivo completo
-buf_conv:       .skip 32     // Buffer temporal para conversiones numéricas
+
+buffer_salida:  .skip 512
+buf_conv:       .skip 32
 
 .section .text
 .global _start
@@ -81,24 +74,33 @@ _start:
     mov x0, #2              // default: columna 2 = TEMP
 
 .llamar_leer_4:
-    // leer_datos llena datos[] con los 30 valores de la columna x0
-    bl  leer_datos
+    // read_column_to_stack lee la columna x11 del CSV y deja los
+    // datos guardados en el stack (igual que en modulo_1_media.s)
+    mov x11, x0
+    bl  read_column_to_stack
+    mov x28, x3             // x28 = donde restaurar el stack al terminar
+    mov x26, x2             // x26 = N (cantidad real de datos)
+    sub x17, x1, #16         // x17 = direccion del dato mas viejo (datos[0])
+    ldr x19, [x17]           // x19 = valor inicial
+    mov x18, #0             // x18 = contador de datos leidos
 
-    // --------------------------------------------------------
-    // CALCULOS de prediccion lineal simple
-    // x19 = valor inicial (datos[0])
-    // x22 = valor final   (datos[29])
-    // x23 = diferencia total
-    // x24 = promedio de cambio (puede ser negativo)
-    // x25 = prediccion = final + promedio
-    // --------------------------------------------------------
-    adr x9,  datos
-    ldr x19, [x9, #0]       // datos[0] = primer valor
-    ldr x22, [x9, #232]    // datos[29] = ultimo valor (29 * 8 = 232)
+.loop_buscar_final_4:
+    cmp x18, x26             // mientras contador < N
+    bge .fin_loop_final_4    // si contador >= N, terminamos
 
-    sub x23, x22, x19       // diferencia total = final - inicial
-    mov x4,  #29            // 29 intervalos entre 30 datos
-    sdiv x24, x23, x4       // promedio de cambio = diferencia / 29
+    ldr x22, [x17]       // x22 = dato actual
+    sub x17, x17, #16   // avanzar al siguiente dato (restamos 16 porque cada dato es un qword)
+    add x18, x18, #1    // contador++
+    b   .loop_buscar_final_4
+
+.fin_loop_final_4:
+    sub x23, x22, x19       // x23 = diferencia total = final - inicial
+    sub x4, x26, #1         // x4 = N - 1 intervalos entre N datos
+    cmp x4, #0
+    bne .dividir_4
+    mov x4, #1  
+.dividir_4:
+    sdiv x24, x23, x4       // promedio de cambio = diferencia / (N-1)
     add  x25, x22, x24      // prediccion = final + promedio
 
     // --------------------------------------------------------
@@ -107,7 +109,7 @@ _start:
     // --------------------------------------------------------
     adr x20, buffer_salida
 
-    // --- Escribir Encabezado y Valor Inicial ---
+    // MODULE=PREDICTION\nINITIAL_VALUE=valor
     adr x0, lbl_header
     bl  copiar_a_buffer
     mov x0, x19
@@ -116,16 +118,17 @@ _start:
     adr x0, buf_conv
     bl  copiar_a_buffer
 
-    // --- Escribir Valor Final ---
+    // \nFINAL_VALUE=valor
     adr x0, lbl_final
     bl  copiar_a_buffer
     mov x0, x22
+    mov sp, x28             // restaurar el stack, ya no se necesitan los datos
     adr x1, buf_conv
     bl  formatear_numero
     adr x0, buf_conv
     bl  copiar_a_buffer
 
-    // --- Escribir Diferencia Total ---
+    // \nTOTAL_DIFF=valor
     adr x0, lbl_diff
     bl  copiar_a_buffer
     mov x0, x23
@@ -134,7 +137,7 @@ _start:
     adr x0, buf_conv
     bl  copiar_a_buffer
 
-    // --- Escribir Promedio de Cambio ---
+    // \nAVG_CHANGE=valor
     adr x0, lbl_avg
     bl  copiar_a_buffer
     mov x0, x24
@@ -143,7 +146,7 @@ _start:
     adr x0, buf_conv
     bl  copiar_a_buffer
 
-    // --- Escribir Predicción (Siguiente Valor) ---
+    // \nNEXT_VALUE=valor
     adr x0, lbl_next
     bl  copiar_a_buffer
     mov x0, x25
@@ -152,7 +155,7 @@ _start:
     adr x0, buf_conv
     bl  copiar_a_buffer
 
-    // --- Escribir salto de línea final ---
+    // salto de linea final
     adr x0, lbl_nl
     bl  copiar_a_buffer
 
@@ -192,13 +195,12 @@ _start:
     mov x0, #0
     svc #0
 
-// ============================================================
-// FUNCIONES AUXILIARES INTERNAS
-// ============================================================
 
-// --- Función: copiar_a_buffer ---
-// Copia una cadena terminada en \0 (x0) hacia el buffer de salida (x20)
+// ============================================================
+// copiar_a_buffer
+// Copia una cadena terminada en \0 desde x0 hacia x20
 // x20 avanza automaticamente con cada caracter copiado
+// ============================================================
 copiar_a_buffer:
     ldrb w21, [x0], #1      // leer byte y avanzar x0
     cbz  w21, fin_copiar    // si es \0 terminamos
@@ -208,28 +210,25 @@ fin_copiar:
     ret
 
 
-// --- Función: formatear_numero ---
-// Revisa si el número es negativo. Si lo es, añade el '-' al buffer destino 
-// y luego llama al conversor normal de utils.s
+// ============================================================
+// formatear_numero
+// Si x0 es negativo, escribe '-' primero y luego el valor absoluto
+// Llama a int_a_ascii de utils para la conversion
+// x1 = buffer destino del texto convertido
+// ============================================================
 formatear_numero:
     stp  x29, x30, [sp, #-16]!
     mov  x29, sp
 
     cmp  x0, #0
-    bge  conv_positivo      // Si es mayor o igual a 0, saltar 
+    bge  conv_positivo      // si es >= 0 no necesitamos el signo
 
-    // Si es negativo: colocar '-' en el buffer de conversión
-    mov  w9, #45            // Código ASCII para '-'
-    strb w9, [x1], #1       // Guardar el '-' y avanzar el puntero del buffer
-    neg  x0, x0             // Volver el número positivo para int_a_ascii
+    // numero negativo: poner el '-' antes
+    mov  w9, #45            // ASCII '-'
+    strb w9, [x1], #1       // guardar '-' y avanzar x1
+    neg  x0, x0             // convertir a positivo para int_a_ascii
 
 conv_positivo:
     bl   int_a_ascii        // convierte x0 al texto en x1
     ldp  x29, x30, [sp], #16
     ret
-
-/*  Ejecutar para pruebas:
-    make modulo_4_prediccion
-    qemu-aarch64 ./modulo_4_prediccion
-    cat resultado_prediccion.txt
-*/

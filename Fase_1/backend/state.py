@@ -19,7 +19,6 @@ _lock = threading.Lock()
 def clasificar_suelo(valor):
     if isinstance(valor, str):
         return valor
-    # Fallback para valores numericos
     if valor < config.UMBRAL_HUMEDAD_BAJA:
         return "SECO"
     elif valor <= config.UMBRAL_HUMEDAD_NORMAL:

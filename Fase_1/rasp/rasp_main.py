@@ -1,8 +1,3 @@
-"""
-rasp_main.py — Programa IoT principal de la Raspberry Pi 4
-Lee sensores, controla actuadores, publica por MQTT.
-"""
-
 import time
 import threading
 import signal
@@ -27,6 +22,7 @@ estado = {
 }
 
 _riego_activo        = False
+_procesando_reset    = False
 _tiempo_ultimo_riego = 0
 _corriendo           = True
 
@@ -50,7 +46,9 @@ def aplicar_control(temp, suelo1, suelo2, luz, gas_valor, gas_estado):
 
     if estado["modo"] == "AUTOMATICO":
 
-        if gas_estado == "GAS_ADVERTENCIA" or temp > cfg.UMBRAL_TEMP_ALTA:
+        if gas_estado == "GAS_EMERGENCIA":
+            pass
+        elif gas_estado == "GAS_ADVERTENCIA" or temp > cfg.UMBRAL_TEMP_ALTA:
             estado["ventilador"] = True
             actuadores.ventilador(True)
         else:
@@ -99,6 +97,7 @@ def _activar_riego():
         _riego_activo = True
         print(f"[RIEGO] Iniciando por {cfg.DURACION_RIEGO}s")
         actuadores.bomba(True)
+        time.sleep(cfg.DURACION_RIEGO)
         actuadores.apagar_bomba()
         _riego_activo = False
         _tiempo_ultimo_riego = time.time()
@@ -156,6 +155,11 @@ def btn_luces():
     mqtt.publicar_comando_manual("LUCES", "ON" if estado["luces"] else "OFF")
 
 def btn_reset():
+    global _procesando_reset
+    if _procesando_reset:
+        return
+    _procesando_reset = True
+
     estado["alarma"]  = False
     estado["global"]  = "NORMAL"
     estado["modo"]    = "AUTOMATICO"
@@ -164,6 +168,9 @@ def btn_reset():
     print("[BTN] Reset — alarma silenciada")
     lcd.escribir("Alarma silenciada", "Modo: AUTO")
     mqtt.publicar_comando_manual("RESET", "")
+
+    _procesando_reset = False
+
 
 def procesar_comando(payload):
     accion = payload.get("accion", "").upper()
@@ -195,7 +202,12 @@ def procesar_comando(payload):
             estado["modo"] = valor
 
     elif accion == "RESET":
-        btn_reset()
+        estado["alarma"]  = False
+        estado["global"]  = "NORMAL"
+        estado["modo"]    = "AUTOMATICO"
+        actuadores.buzzer(False)
+        actuadores.set_led_estado("NORMAL")
+        lcd.escribir("Alarma silenciada", "Modo: AUTO")
 
 
 def ciclo():
@@ -237,6 +249,7 @@ def _loop():
             ciclo()
         except Exception as e:
             print(f"[ERROR] {e}")
+        time.sleep(cfg.INTERVALO_LECTURA)
 
 
 def shutdown(sig, frame):
@@ -265,4 +278,6 @@ if __name__ == "__main__":
     mqtt.iniciar(cb_comando=procesar_comando)
 
     lcd.escribir("Invernadero IoT", "Iniciando...")
+    time.sleep(1)
+
     _loop()

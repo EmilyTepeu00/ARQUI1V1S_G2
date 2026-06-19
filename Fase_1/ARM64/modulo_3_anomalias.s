@@ -1,461 +1,358 @@
-// ============================================================
 // modulo_3_anomalias.s
-// Rutina ARM64 - Deteccion Estadistica de Anomalias
-// Proyecto: Invernadero Inteligente IoT - ACYE1
-// Integrante 3
-//
-// Lee la columna que el usuario seleccione desde el dashboard.
-// El numero de columna llega como argv[1] cuando Python ejecuta
-// el binario. Si no viene argumento, usa columna 7 (GAS).
+// Deteccion Estadistica de Anomalias
+// Emily Maritza Tepeu Guacamaya - 202402955
 //
 // Detecta anomalias usando z-score: |Z| >= 2 = ANOMALIA
 // Z = (X - MEDIA) * 10 / DESV  (x10 para evitar decimales)
-//
-// Archivo de entrada:  lecturas.csv
-// Archivo de salida:   resultado_anomalias.txt
-// ============================================================
 
-.equ SYS_OPENAT,  56
-.equ SYS_CLOSE,   57
-.equ SYS_WRITE,   64
-.equ SYS_EXIT,    93
-.equ AT_FDCWD,   -100
-.equ O_WRONLY,    1
-.equ O_CREAT,     64
-.equ O_TRUNC,     512
-.equ PERM_644,    0644
-.equ N_DATOS,     30
+
+// FUNCIONES EXTERNAS
+.extern read_column_to_stack   // Lee columna del CSV y guarda datos en stack
+.extern int_a_ascii            // Convierte entero a texto ASCII
+.extern ascii_a_int            // Convierte texto ASCII a entero
+
+// Constantes .equ se usa para definir constantes, parecido al #define en C
+// Syscalls son llamadas al SO
+.equ SYS_OPENAT,  56    // abrir archivo
+.equ SYS_CLOSE,   57    // cerrar archivo
+.equ SYS_WRITE,   64    // escribir en ela rchivo
+.equ SYS_EXIT,    93    // trminar el programa
+.equ AT_FDCWD,   -100   // le dice al sistema que use el directorio actual
+.equ O_WRONLY,    1     // modo escribir solo
+.equ O_CREAT,     64    // crear archivo si no existe
+.equ O_TRUNC,     512   // borrar contenido si ya existe
+.equ PERM_644,    0644  // permisos del archivo (rw-r--r--)
+.equ N_DATOS,     30    // cantidad de datos a procesar
 
 .section .data
 
+// NOMBRE DEL ARCHIVO DE SALIDA
 archivo_salida:   .asciz "resultado_anomalias.txt"
 
-str_module:       .ascii "MODULE=ANOMALY_DETECTION\n"
-.equ str_module_len, . - str_module
+// ETIQUETAS PARA EL ARCHIVO DE SALIDA
+str_module:       .asciz "MODULE=ANOMALY_DETECTION\n"
+str_total:        .asciz "TOTAL_VALUES=30\n"
+str_mean_label:   .asciz "MEAN="
+str_std_label:    .asciz "STD_DEV="
+str_anom_label:   .asciz "ANOMALIES="
+str_risk_label:   .asciz "SYSTEM_RISK="
 
-str_total:        .ascii "TOTAL_VALUES=30\n"
-.equ str_total_len, . - str_total
-
-str_mean_label:   .ascii "MEAN="
-.equ str_mean_label_len, . - str_mean_label
-
-str_std_label:    .ascii "STD_DEV="
-.equ str_std_label_len, . - str_std_label
-
-str_anom_label:   .ascii "ANOMALIES="
-.equ str_anom_label_len, . - str_anom_label
-
-str_risk_label:   .ascii "SYSTEM_RISK="
-.equ str_risk_label_len, . - str_risk_label
-
-str_risk_normal:  .ascii "NORMAL\n"
-.equ str_risk_normal_len, . - str_risk_normal
-
-str_risk_medium:  .ascii "MEDIUM\n"
-.equ str_risk_medium_len, . - str_risk_medium
-
-str_risk_high:    .ascii "HIGH\n"
-.equ str_risk_high_len, . - str_risk_high
+// CLASIFICACION DE RIESGO
+str_risk_normal:  .asciz "NORMAL\n"
+str_risk_medium:  .asciz "MEDIUM\n"
+str_risk_high:    .asciz "HIGH\n"
 
 .section .bss
 
-buf_conv:      .skip 32
-res_mean:      .skip 8
-res_std:       .skip 8
-res_anomalias: .skip 8
+// BUFFER CONVERSION NUMERO A TEXTO
+buf_conv:      .skip 32      // Buffer temp para convertir num a texto
+buffer_salida: .skip 512     // Buffer para armar el archivo de salida
+
+// VARIABLES PARA ALMACENAR RESULTADOS
+res_mean:      .skip 8       // Media aritmetica
+res_std:       .skip 8       // Desviacion estandar
+res_anomalias: .skip 8       // Cantidad de anomalias
 
 .section .text
 .global _start
 
-.extern leer_datos
-.extern ascii_a_int
-.extern datos
-
+// ----- PROGRAMA PRINCIPAL -----
 _start:
-    // --------------------------------------------------------
-    // LECTURA DE argv[1]: el numero de columna que manda Python
-    // [sp]    = argc
-    // [sp+16] = puntero al string de argv[1] (ej: "7" para GAS)
-    // Si no viene argumento usamos columna 7 (GAS) por defecto
-    // --------------------------------------------------------
-    ldr x0, [sp]            // x0 = argc
+    // LECTURA DEL ARG DE COLUMNA
+    // [sp] contiene argc
+    // [sp+16] puntero a argv[1] (el string de la columna)
+    ldr x0, [sp]            // x0 = argc (cantidad de arg)
     cmp x0, #2              // hay al menos 1 argumento?
-    blt .usar_default_3     // no -> ir al default
+    blt usar_default_3      // Si no, columna 7 por default
 
+    // Si hay argumento, leerlo
     ldr x0, [sp, #16]       // x0 = puntero a argv[1]
-    bl  ascii_a_int          // convierte el string a numero entero en x0
-    b   .llamar_leer_3
+    bl  ascii_a_int         // convierte el string a numero entero en x0
+    b   llamar_leer_3
 
-.usar_default_3:
+usar_default_3:
     mov x0, #7              // default: columna 7 = GAS
 
-.llamar_leer_3:
-    // leer_datos llena datos[] con los 30 valores de la columna x0
-    bl   leer_datos
-    cmp  x0, #N_DATOS
-    blt  salir_error        // si no leyo 30 datos, algo fallo
+llamar_leer_3:
+    // Llamar a read_column_to_stack
+    //  Se lee la columna del CSV y guarda los datos en el stack
+    // La columna a leer debe estar en x11
+    mov x11, x0
+    bl  read_column_to_stack
 
-    bl  subr_calcular_media
-    bl  subr_calcular_desviacion
-    bl  subr_contar_anomalias
-    bl  subr_escribir_resultado
+    // VALORES DE RETORNO DE read_column_to_stack
+    mov x24, x0     // x0 = primer dato leido
+    mov x25, x1     // x1 = limite superior
+    mov x26, x3     // x2 = cantidad real de datos leidos (N)
+    mov x27, x2     // x3 = posicion original del st ya no se usen los datos
 
-    mov  x8,  SYS_EXIT
-    mov  x0,  0
-    svc  0
+    // CALCULAR MEDIA
+    // Se usa x6 como puntero y x7 como acumulador de suma
+    mov x6, x24
+    mov x7, #0
 
-salir_error:
-    mov  x8,  SYS_EXIT
-    mov  x0,  1
-    svc  0
+suma_loop:
+    cmp x6, x25
+    beq suma_fin
 
+    ldr x9, [x6], #16   // Cada dato ocupa 16 bytes en la pila
+    add x7, x7, x9
+    b suma_loop
 
-// ===========================================================
-// SUBRUTINA: subr_calcular_media
-// MEDIA = suma(X) / N
-// Guarda resultado en res_mean
-// ===========================================================
-subr_calcular_media:
-    stp  x29, x30, [sp, #-48]!
-    stp  x19, x20, [sp, #16]
-    stp  x21, x22, [sp, #32]
-    mov  x29, sp
+suma_fin:
+    udiv x12, x7, x27   // x12 = MEDIA
 
-    adr  x19, datos
-    mov  x20, #0            // contador i
-    mov  x21, #0            // acumulador suma
+    // CALCULAR VARIANZA
+    // Se usa x6 como puntero y x13 como acumulador de cuadrados
+    mov x6, x24
+    mov x13, #0     // Acumulador de cuadrados
 
-calc_mean_loop:
-    cmp  x20, #N_DATOS
-    bge  calc_mean_fin
+var_loop:
+    cmp x6, x25
+    beq var_fin
 
-    ldr  x22, [x19, x20, lsl #3]
-    add  x21, x21, x22
-    add  x20, x20, #1
-    b    calc_mean_loop
+    ldr x9, [x6], #16
 
-calc_mean_fin:
-    mov  x22, #N_DATOS
-    udiv x23, x21, x22      // x23 = MEDIA
+    sub x14, x9, x12
+    mul x15, x14, x14
+    add x13, x13, x15
 
-    adr  x9, res_mean
-    str  x23, [x9]
+    b var_loop
 
-    ldp  x21, x22, [sp, #32]
-    ldp  x19, x20, [sp, #16]
-    ldp  x29, x30, [sp], #48
-    ret
+var_fin:
+    udiv x16, x13, x27  // x16 = VARIANZA
 
+    // CALCULAR DESVIACION ESTANDAR
+    // Se usa raiz_cuadrada para calcular la raiz de la varianza
+    mov x0, x16
+    bl raiz_cuadrada
+    mov x17, x0     // x17 = STD_DEV
 
-// ===========================================================
-// SUBRUTINA: subr_calcular_desviacion
-// VAR  = suma((X - MEDIA)^2) / N
-// DESV = sqrt(VAR)
-// Guarda resultado en res_std
-// ===========================================================
-subr_calcular_desviacion:
-    stp  x29, x30, [sp, #-64]!
-    stp  x19, x20, [sp, #16]
-    stp  x21, x22, [sp, #32]
-    stp  x23, x24, [sp, #48]
-    mov  x29, sp
-
-    adr  x19, datos
-    adr  x9,  res_mean
-    ldr  x21, [x9]          // x21 = MEDIA
-    mov  x20, #0            // contador i
-    mov  x22, #0            // acumulador suma de cuadrados
-
-calc_var_loop:
-    cmp  x20, #N_DATOS
-    bge  calc_var_fin
-
-    ldr  x23, [x19, x20, lsl #3]
-    // (X - MEDIA) puede ser negativo, usamos resta con signo
-    sub  x23, x23, x21
-    mul  x23, x23, x23      // elevar al cuadrado elimina el signo
-    add  x22, x22, x23
-
-    add  x20, x20, #1
-    b    calc_var_loop
-
-calc_var_fin:
-    mov  x23, #N_DATOS
-    udiv x24, x22, x23      // x24 = VARIANZA
-
-    mov  x0,  x24
-    bl   subr_raiz_cuadrada // x0 = DESV
-
-    adr  x9, res_std
-    str  x0,  [x9]
-
-    ldp  x23, x24, [sp, #48]
-    ldp  x21, x22, [sp, #32]
-    ldp  x19, x20, [sp, #16]
-    ldp  x29, x30, [sp], #64
-    ret
-
-
-// ===========================================================
-// SUBRUTINA: subr_raiz_cuadrada
-// Newton-Raphson para raiz cuadrada entera
-// Entrada: x0 = numero
-// Salida:  x0 = raiz
-// ===========================================================
-subr_raiz_cuadrada:
-    stp  x29, x30, [sp, #-32]!
-    stp  x19, x20, [sp, #16]
-    mov  x29, sp
-
-    mov  x19, x0
-
-    cmp  x19, #0
-    beq  sqrt_cero
-
-    lsr  x20, x19, #1       // estimado inicial = num / 2
-
-    cmp  x20, #0
-    beq  sqrt_uno
-
-sqrt_loop:
-    udiv x0,  x19, x20
-    add  x0,  x0, x20
-    lsr  x0,  x0, #1       // nuevo estimado = (est + num/est) / 2
-
-    cmp  x0, x20
-    bge  sqrt_listo         // si no mejoro, convergio
-
-    mov  x20, x0
-    b    sqrt_loop
-
-sqrt_listo:
-    mov  x0, x20
-    b    sqrt_fin
-
-sqrt_cero:
-    mov  x0, #0
-    b    sqrt_fin
-
-sqrt_uno:
-    mov  x0, #1
-
-sqrt_fin:
-    ldp  x19, x20, [sp, #16]
-    ldp  x29, x30, [sp], #32
-    ret
-
-
-// ===========================================================
-// SUBRUTINA: subr_contar_anomalias
-// Cuenta datos donde |Z| >= 2
-// Z = (X - MEDIA) * 10 / DESV  (x10 para trabajar sin decimales)
-// Guarda resultado en res_anomalias
-// ===========================================================
-subr_contar_anomalias:
-    stp  x29, x30, [sp, #-64]!
-    stp  x19, x20, [sp, #16]
-    stp  x21, x22, [sp, #32]
-    stp  x23, x24, [sp, #48]
-    mov  x29, sp
-
-    adr  x19, datos
-    adr  x9,  res_mean
-    ldr  x21, [x9]          // x21 = MEDIA
-    adr  x9,  res_std
-    ldr  x22, [x9]          // x22 = DESV
-
-    mov  x20, #0            // contador i
-    mov  x25, #0            // contador anomalias
+    // CONTAR ANOMALIAS
+    // Se usa x6 como puntero y x18 como contador de anomalias
+    mov x6, x24
+    mov x18, #0     // Contador anomalias
 
 anom_loop:
-    cmp  x20, #N_DATOS
-    bge  anom_fin
+    cmp x6, x25
+    beq anom_fin
 
-    ldr  x23, [x19, x20, lsl #3]   // x23 = dato[i]
+    ldr x9, [x6], #16       // x9 = dato actual
 
-    // calcular |dato - media|
-    sub  x24, x23, x21
-    cmp  x24, #0
-    bge  anom_positivo
-    neg  x24, x24           // valor absoluto
+    // Calcular |dato - media|
+    sub x19, x9, x12
+    cmp x19, #0
+    bge anom_pos
+    neg x19, x19        // valor absoluto
 
-anom_positivo:
-    cmp  x22, #0
-    beq  anom_siguiente     // si desv = 0 no hay anomalias
+anom_pos:
+    // Z = |dato - media| / desv
+    // Se multiplica por 10 para evitar decimales
+    // |Z| >= 2 equivale a |Z|*10 >= 20
+    mov x20, #10
+    mul x19, x19, x20
+    udiv x19, x19, x17
 
-    // Z * 10 = |dato - media| * 10 / desv
-    // si Z * 10 >= 20 entonces |Z| >= 2 = ANOMALIA
-    mov  x9,  #10
-    mul  x24, x24, x9
-    udiv x24, x24, x22
+    cmp x19, #20
+    blt anom_siguiente
 
-    cmp  x24, #20
-    blt  anom_siguiente
-
-    add  x25, x25, #1       // es anomalia, contamos
+    // Si |Z| >= 2, es una anomalia
+    add x18, x18, #1
 
 anom_siguiente:
-    add  x20, x20, #1
-    b    anom_loop
+    b anom_loop
 
 anom_fin:
-    adr  x9, res_anomalias
-    str  x25, [x9]
+    // GUARDAR RESULTADOS EN MEMORIA
+    adr x9, res_mean
+    str x12, [x9]
 
-    ldp  x23, x24, [sp, #48]
-    ldp  x21, x22, [sp, #32]
-    ldp  x19, x20, [sp, #16]
-    ldp  x29, x30, [sp], #64
+    adr x9, res_std
+    str x17, [x9]
+
+    adr x9, res_anomalias
+    str x18, [x9]
+
+    // RESTAURAR EL STACK
+    mov sp, x26
+
+    // GENERAR SALIDA
+    adr x0, buffer_salida
+    mov x9, #0      // x9 = contador de bytes escritos
+
+    // MODULE=ANOMALY_DETECTION
+    adr x1, str_module
+    bl copiar_cadena
+
+    // TOTAL_VALUES=30
+    adr x1, str_total
+    bl copiar_cadena
+
+    // MEAN=
+    adr x1, str_mean_label
+    bl copiar_cadena
+    mov x23, x9
+    mov x0, x12
+    adr x1, buf_conv
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_conv
+    bl copiar_cadena
+    bl copiar_newline
+
+    // STD_DEV=
+    adr x1, str_std_label
+    bl copiar_cadena
+    mov x23, x9
+    mov x0, x17
+    adr x1, buf_conv
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_conv
+    bl copiar_cadena
+    bl copiar_newline
+
+    // ANOMALIES=
+    adr x1, str_anom_label
+    bl copiar_cadena
+    mov x23, x9
+    mov x0, x18
+    adr x1, buf_conv
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_conv
+    bl copiar_cadena
+    bl copiar_newline
+
+    // SYSTEM_RISK=
+    adr x1, str_risk_label
+    bl copiar_cadena
+
+    // Clasificar segun la cantidad de anomalias
+    cmp x18, #0
+    beq risk_normal
+    cmp x18, #4
+    blt risk_medium
+
+// 4 o mas --> ALTO
+risk_high:
+    adr x1, str_risk_high
+    bl copiar_cadena
+    b risk_done
+
+// 1-3 --> MEDIO
+risk_medium:
+    adr x1, str_risk_medium
+    bl copiar_cadena
+    b risk_done
+
+//0 --> NORMAL
+risk_normal:
+    adr x1, str_risk_normal
+    bl copiar_cadena
+
+risk_done:
+
+    // ESCRIBIR EL ARCHIVO resultado_anomalias.txt
+    mov x8, #56
+    mov x0, #-100
+    adr x1, archivo_salida
+    mov x2, #577
+    mov x3, #0644
+    svc #0
+    mov x10, x0
+
+    mov x8, #64
+    mov x0, x10
+    adr x1, buffer_salida
+    mov x2, x9
+    svc #0
+
+    mov x8, #57
+    mov x0, x10
+    svc #0
+
+    // FIN DEL PROGRAMA
+    mov x8, SYS_EXIT
+    mov x0, 0
+    svc 0
+
+// NEWTON-RAPHSON para raiz cuadrada entera
+// ENTRADA: x0 = numero a calcular raiz
+// SALIDA:  x0 = raiz cuadrada entera (truncada)
+raiz_cuadrada:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x19, [sp, #16]
+    str x20, [sp, #24]
+
+    mov x19, x0     // Guardar numero
+
+    cmp x19, #0
+    beq raiz_es_cero    // beq: branch if equal (comparacion) √0 = 0
+
+    lsr x20, x19, #1
+
+    cmp x20, #0
+    beq raiz_es_uno     // Si N/2 = 0, √N = 1
+
+loop_newton:
+    // x_nuevo = (x_actual + N/x_actual) / 2
+    udiv x0, x19, x20   // x0 = N / x_actual
+    add x0, x0, x20     // x0 = x_actual + N/x_actual
+    lsr x0, x0, #1      // x0 = (x_actual + N/x_actual) / 2
+
+    cmp x0, x20
+    bge raiz_lista      // Si no mejora, convergió
+
+    mov x20, x0         // Actualizar estimado
+    b loop_newton
+
+raiz_lista:
+    mov x0, x20
+    b fin_raiz
+
+raiz_es_cero:
+    mov x0, #0
+    b fin_raiz
+
+raiz_es_uno:
+    mov x0, #1
+
+fin_raiz:
+    ldr x19, [sp, #16]
+    ldr x20, [sp, #24]
+    ldp x29, x30, [sp], #32
     ret
 
+// ----- FUNCIONES PARA COPIAR AL BUFFER -----
 
-// ===========================================================
-// SUBRUTINA: subr_escribir_resultado
-// Abre resultado_anomalias.txt y escribe todos los valores
-// Clasificacion del riesgo:
-//   0 anomalias  -> NORMAL
-//   1-3          -> MEDIUM
-//   4 o mas      -> HIGH
-// ===========================================================
-subr_escribir_resultado:
-    stp  x29, x30, [sp, #-48]!
-    stp  x19, x20, [sp, #16]
-    stp  x21, x22, [sp, #32]
-    mov  x29, sp
+// Copiar cadena terminada en \0 desde x1 hacia buffer_salida
+// x9 mantiene la cuenta de bytes escritos
+copiar_cadena:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adr x0, buffer_salida
 
-    // abrir/crear el archivo de salida
-    mov  x8,  SYS_OPENAT
-    mov  x0,  AT_FDCWD
-    adr  x1,  archivo_salida
-    mov  x2,  O_WRONLY | O_CREAT | O_TRUNC
-    mov  x3,  PERM_644
-    svc  0
-    cmp  x0,  0
-    blt  er_fin
-    mov  x19, x0            // x19 = descriptor del archivo
+loop_cc:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_cc
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    add x1, x1, #1
+    b loop_cc
 
-    // escribir cada linea
-    adr  x0, str_module
-    mov  x1, str_module_len
-    bl   subr_escribir_buf
-
-    adr  x0, str_total
-    mov  x1, str_total_len
-    bl   subr_escribir_buf
-
-    adr  x0, str_mean_label
-    mov  x1, str_mean_label_len
-    bl   subr_escribir_buf
-    adr  x9, res_mean
-    ldr  x0, [x9]
-    bl   subr_escribir_entero_nl
-
-    adr  x0, str_std_label
-    mov  x1, str_std_label_len
-    bl   subr_escribir_buf
-    adr  x9, res_std
-    ldr  x0, [x9]
-    bl   subr_escribir_entero_nl
-
-    adr  x0, str_anom_label
-    mov  x1, str_anom_label_len
-    bl   subr_escribir_buf
-    adr  x9, res_anomalias
-    ldr  x0, [x9]
-    bl   subr_escribir_entero_nl
-
-    // clasificar el riesgo segun cantidad de anomalias
-    adr  x0, str_risk_label
-    mov  x1, str_risk_label_len
-    bl   subr_escribir_buf
-
-    adr  x9, res_anomalias
-    ldr  x0, [x9]
-    cmp  x0, #0
-    beq  er_risk_normal
-    cmp  x0, #4
-    blt  er_risk_medium
-
-er_risk_high:
-    adr  x0, str_risk_high
-    mov  x1, str_risk_high_len
-    bl   subr_escribir_buf
-    b    er_cerrar
-
-er_risk_medium:
-    adr  x0, str_risk_medium
-    mov  x1, str_risk_medium_len
-    bl   subr_escribir_buf
-    b    er_cerrar
-
-er_risk_normal:
-    adr  x0, str_risk_normal
-    mov  x1, str_risk_normal_len
-    bl   subr_escribir_buf
-
-er_cerrar:
-    mov  x8, SYS_CLOSE
-    mov  x0, x19
-    svc  0
-
-er_fin:
-    ldp  x21, x22, [sp, #32]
-    ldp  x19, x20, [sp, #16]
-    ldp  x29, x30, [sp], #48
+fin_cc:
+    ldp x29, x30, [sp], #16
     ret
 
-
-// escribe x1 bytes desde x0 al fd en x19
-subr_escribir_buf:
-    stp  x29, x30, [sp, #-16]!
-    mov  x29, sp
-    mov  x8,  SYS_WRITE
-    mov  x2,  x1
-    mov  x1,  x0
-    mov  x0,  x19
-    svc  0
-    ldp  x29, x30, [sp], #16
-    ret
-
-
-// convierte x0 a texto ASCII y escribe al archivo con salto de linea
-subr_escribir_entero_nl:
-    stp  x29, x30, [sp, #-32]!
-    stp  x19, x20, [sp, #16]
-    mov  x29, sp
-
-    adr  x9,  buf_conv
-    add  x10, x9, #28       // trabajamos desde el final del buffer
-
-    mov  w12, '\n'
-    strb w12, [x10]         // poner el \n al final
-
-    cbnz x0, sein_loop
-    // caso especial: numero es 0
-    mov  w12, '0'
-    sub  x10, x10, #1
-    strb w12, [x10]
-    b    sein_escribir
-
-sein_loop:
-    cbz  x0, sein_escribir
-    mov  x11, #10
-    udiv x12, x0, x11
-    msub x12, x12, x11, x0  // digito = x0 % 10
-    add  w12, w12, '0'
-    sub  x10, x10, #1
-    strb w12, [x10]
-    udiv x0,  x0, x11
-    b    sein_loop
-
-sein_escribir:
-    adr  x9, buf_conv
-    add  x9, x9, #28
-    sub  x1, x9, x10        // longitud = fin - inicio
-    add  x1, x1, #1
-    mov  x0, x10
-    bl   subr_escribir_buf
-
-    ldp  x19, x20, [sp, #16]
-    ldp  x29, x30, [sp], #32
+// Agregar salto de linea al buffer
+copiar_newline:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    mov w2, #10               // codigo ASCII del salto de linea
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    ldp x29, x30, [sp], #16
     ret

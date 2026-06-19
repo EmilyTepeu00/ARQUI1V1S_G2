@@ -88,11 +88,24 @@ def obtener_historial_sensores(limite=30):
         return []
 
 
-def obtener_resultados_arm64():
+def obtener_resultados_arm64(variable=None):
     if _db is None:
         return []
     try:
-        cursor = _db[COL_ARM64_RESULTS].find({}, {"_id": 0}).sort("timestamp", -1).limit(10)
+        if variable:
+            cursor = _db[COL_ARM64_RESULTS].find(
+                {"variable": variable}, {"_id": 0}
+            ).sort("timestamp", -1).limit(5)
+            return list(cursor)
+
+        ultimo = _db[COL_ARM64_RESULTS].find({}, {"_id": 0}).sort("timestamp", -1).limit(1)
+        ultimo = list(ultimo)
+        if not ultimo:
+            return []
+        variable_reciente = ultimo[0].get("variable")
+        cursor = _db[COL_ARM64_RESULTS].find(
+            {"variable": variable_reciente}, {"_id": 0}
+        ).sort("timestamp", -1).limit(5)
         return list(cursor)
     except Exception:
         return []

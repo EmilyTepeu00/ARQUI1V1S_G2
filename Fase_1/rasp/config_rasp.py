@@ -54,19 +54,19 @@ PIN_BTN_LUCES  = 18   # Botón 3 — luces manual
 PIN_BTN_RESET  = 20   # Botón 4 — silenciar alarma / reset
 
 # LCD I2C
-LCD_ADDRESS    = 0x27 # Dirección I2C (probar 0x3F si no funciona)
+LCD_ADDRESS    = 0x27 # Dirección I2C
 LCD_COLS       = 16
 LCD_ROWS       = 2
 
 # Umbrales
 UMBRAL_TEMP_ALTA       = 32.0
 UMBRAL_LUZ_BAJA        = 300   # LDR digital: 0=oscuro, 1=luz
-UMBRAL_GAS_EMERGENCIA = 90
-UMBRAL_GAS_ADVERTENCIA = 80
+UMBRAL_GAS_EMERGENCIA = 75
+UMBRAL_GAS_ADVERTENCIA = 70
 
 # Duración del riego (segundos)
 DURACION_RIEGO    = 10
 PAUSA_ENTRE_RIEGO = 30
 
 # Intervalo de lectura (segundos)
-INTERVALO_LECTURA = 15
+INTERVALO_LECTURA = 2

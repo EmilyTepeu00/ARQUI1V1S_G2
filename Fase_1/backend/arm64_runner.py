@@ -10,16 +10,15 @@ RESULTADOS_DIR = ARM64_DIR
 CSV_BACKEND    = os.path.join(os.path.dirname(__file__), "lecturas.csv")
 CSV_ARM64      = os.path.join(ARM64_DIR, "lecturas.csv")
 
-# Mapeo de nombre de variable -> indice de columna en lecturas.csv
 # Cabecera: ID,TEMP,HUM_AIRE,HUM_SUELO_1,HUM_SUELO_2,LUZ,GAS,RIEGO_1,RIEGO_2
 #           0   1     2         3            4          5    6     7       8
 VARIABLES = {
-    "TEMP":        1,
-    "HUM_AIRE":    2,
-    "HUM_SUELO_1": 3,
-    "HUM_SUELO_2": 4,
-    "LUZ":         5,
-    "GAS":         6,
+    "TEMP":        2,
+    "HUM_AIRE":    3,
+    "HUM_SUELO_1": 4,
+    "HUM_SUELO_2": 5,
+    "LUZ":         6,
+    "GAS":         7,
 }
 
 MODULOS = [
@@ -200,10 +199,10 @@ def correr_pipeline(variable="TEMP"):
 
     import csv_manager
     if not csv_manager.esta_completo():
-        print("[ARM64] CSV aun no completo — esperando 30 lecturas")
-        return
+        print(f"[ARM64] Aviso: solo hay {csv_manager.obtener_filas()}/{config.CSV_MAX_ROWS} lecturas, se analiza con los datos disponibles")
 
     variable_upper = variable.upper()
+    
     col_index = VARIABLES.get(variable_upper, 1)
     print(f"[ARM64] Variable seleccionada: {variable_upper} -> columna {col_index}")
 
@@ -219,14 +218,3 @@ def correr_pipeline(variable="TEMP"):
     else:
         print("[ARM64] Sin resultados de archivos .txt")
 
-
-def iniciar_cuando_csv_completo():
-    def _monitor():
-        import time
-        import csv_manager
-        while True:
-            if csv_manager.esta_completo():
-                correr_pipeline()
-                break
-    t = threading.Thread(target=_monitor, daemon=True)
-    t.start()

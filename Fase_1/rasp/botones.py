@@ -37,4 +37,6 @@ def _monitorear():
                     callback()
                 except Exception as e:
                     print(f"[BOTON] Error: {e}")
+                time.sleep(0.3)
             estados[pin] = actual
+        time.sleep(0.05)

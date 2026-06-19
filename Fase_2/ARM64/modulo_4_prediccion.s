@@ -80,18 +80,25 @@ _start:
     bl  read_column_to_stack
     mov x28, x3             // x28 = donde restaurar el stack al terminar
     mov x26, x2             // x26 = N (cantidad real de datos)
-    sub x9, x1, #16         // x9 = direccion del dato mas viejo (datos[0])
-    ldr x19, [x9]           // x19 = valor inicial
+    sub x17, x1, #16         // x17 = direccion del dato mas viejo (datos[0])
+    ldr x19, [x17]           // x19 = valor inicial
+    mov x18, #0             // x18 = contador de datos leidos
 
-    ldr x22, [x0]           // x22 tendra el valor final
+.loop_buscar_final_4:
+    cmp x18, x26             // mientras contador < N
+    bge .fin_loop_final_4    // si contador >= N, terminamos
 
-    sub x23, x22, x19       // diferencia total = final - inicial
+    ldr x22, [x17]       // x22 = dato actual
+    sub x17, x17, #16   // avanzar al siguiente dato (restamos 16 porque cada dato es un qword)
+    add x18, x18, #1    // contador++
+    b   .loop_buscar_final_4
+
+.fin_loop_final_4:
+    sub x23, x22, x19       // x23 = diferencia total = final - inicial
     sub x4, x26, #1         // x4 = N - 1 intervalos entre N datos
     cmp x4, #0
     bne .dividir_4
     mov x4, #1  
-    
-                // evita division por cero si solo hay 1 dato
 .dividir_4:
     sdiv x24, x23, x4       // promedio de cambio = diferencia / (N-1)
     add  x25, x22, x24      // prediccion = final + promedio

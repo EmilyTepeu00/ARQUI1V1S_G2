@@ -29,36 +29,38 @@ def _reescribir_desde_mongo():
     with open(config.CSV_FILE, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(config.CSV_HEADERS)
+        filas_escritas = 0
         for i, doc in enumerate(historial, start=1):
             try:
                 temp_val   = doc.get("temperatura", {}).get("valor", 0)
                 hum_aire   = doc.get("hum_aire", {}).get("valor", 0)
-                suelo1_est = doc.get("hum_suelo_1", {}).get("estado", "SECO")
-                suelo2_est = doc.get("hum_suelo_2", {}).get("estado", "SECO")
+                suelo1_val = doc.get("hum_suelo_1", {}).get("valor_num", 0)
+                suelo2_val = doc.get("hum_suelo_2", {}).get("valor_num", 0)
                 luz_val    = doc.get("luz", {}).get("valor", "BAJO")
                 gas_val    = doc.get("gas", {}).get("valor", 0)
 
-                suelo1_num = 0 if suelo1_est == "SECO" else 1
-                suelo2_num = 0 if suelo2_est == "SECO" else 1
                 luz_num    = 0 if luz_val == "BAJO" else 1
 
                 fila = [
                     i,
                     int(round(float(temp_val) * 10)),
                     int(hum_aire),
-                    suelo1_num,
-                    suelo2_num,
+                    int(suelo1_val),
+                    int(suelo2_val),
                     luz_num,
                     int(gas_val),
                     0,
                     0,
                 ]
                 writer.writerow(fila)
+                filas_escritas += 1
             except Exception as e:
                 print(f"[CSV] Fila Mongo descartada por error: {e}")
                 continue
 
-    return len(historial)
+        f.write("$\n")
+
+    return filas_escritas
 
 
 def esta_completo():

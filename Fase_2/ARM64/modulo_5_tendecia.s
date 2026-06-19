@@ -63,22 +63,17 @@ num_buffer:
 .extern read_column_to_stack 
 .extern int_a_ascii
 .extern ascii_a_int
-.extern atoi_csv
 
 .global _start
 
 _start:
 
-    ldr x0, [sp]            //Revisa el numero de columna q deseamos analizar
-    cmp x0, #2              // Se compara con el #2
-    blt no_argumento        // Muestra error si el no. de columna < 2
- 
-    ldr x21, [sp, #16]      //Toma el numero de columna a trabajar
-    mov x5, #10             //Aviso para trabajar en base 10
-    bl atoi_csv             //Cambia el texto extraido a numero real
-    cbz x7, no_argumento    //Error si el texto extraido no es un numero
- 
-    mov x11, x10            //Mueve el numero de columna ingresado
+    ldr x0, [sp, #16]       //Toma el puntero al texto del numero de columna a trabajar
+    bl ascii_a_int          //Convierte el texto a numero real (resultado en x0)
+    cmp x0, #0
+    beq no_argumento        //Error si el texto extraido no es un numero valido
+
+    mov x11, x0             //Mueve el numero de columna ingresado
     bl read_column_to_stack //Esta funcion abre el csv, lo lee y guarda los 30 datos
  
     mov x24, x0             //Se guardan 4 datos importantes (Ultimo dato guardado, donde se guardo el ultimo dato, datos totales leidos, dato extra para ordenar de nuevo la pila)

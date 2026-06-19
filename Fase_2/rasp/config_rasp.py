@@ -69,4 +69,4 @@ DURACION_RIEGO    = 10
 PAUSA_ENTRE_RIEGO = 30
 
 # Intervalo de lectura (segundos)
-INTERVALO_LECTURA = 15
+INTERVALO_LECTURA = 2

@@ -199,8 +199,7 @@ def correr_pipeline(variable="TEMP"):
 
     import csv_manager
     if not csv_manager.esta_completo():
-        print("[ARM64] CSV aun no completo — esperando 30 lecturas")
-        return
+        print("[ARM64] Aviso: CSV todavia no tiene 30 lecturas, analizando con los datos disponibles")
 
     variable_upper = variable.upper()
     col_index = VARIABLES.get(variable_upper, 1)

@@ -28,27 +28,40 @@ def inicializar():
 def agregar_fila(temp, hum_aire, hum_suelo1, hum_suelo2, luz, gas, riego1, riego2):
     global _id_counter, _completo
     with _lock:
-        if _completo or _id_counter > config.CSV_MAX_ROWS:
-            _completo = True
-            return False
-
         suelo1_num = 0 if hum_suelo1 == "SECO" else 1
         suelo2_num = 0 if hum_suelo2 == "SECO" else 1
         luz_num    = 0 if luz == "BAJO" else 1
 
-        fila = [_id_counter, int(round(float(temp) * 10)), int(hum_aire),
-                suelo1_num, suelo2_num, luz_num, int(gas),
-                int(riego1), int(riego2)]
+        nueva_fila = [int(round(float(temp) * 10)), int(hum_aire),
+                      suelo1_num, suelo2_num, luz_num, int(gas),
+                      int(riego1), int(riego2)]
 
-        with open(config.CSV_FILE, "a", newline="") as f:
-            csv.writer(f).writerow(fila)
-        print(f"[CSV] Fila {_id_counter}/{config.CSV_MAX_ROWS} — TEMP={int(round(float(temp)*10))} HUM={int(hum_aire)} GAS={int(gas)}")
-        _id_counter += 1
-        if _id_counter > config.CSV_MAX_ROWS:
-            with open(config.CSV_FILE, "a") as f:
-                f.write("$\n")
-            _completo = True
-            print("[CSV] COMPLETO — 30 registros listos para ARM64")
+        # Leer filas actuales (sin contar header)
+        filas = []
+        if os.path.exists(config.CSV_FILE):
+            with open(config.CSV_FILE, "r", newline="") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # saltar header
+                filas = [row for row in reader if row]
+
+        # Agregar la nueva fila (sin ID todavía)
+        filas.append(nueva_fila)
+
+        # FIFO: si supera el máximo, tirar la más vieja
+        if len(filas) > config.CSV_MAX_ROWS:
+            filas = filas[-config.CSV_MAX_ROWS:]
+
+        # Reescribir el archivo completo con IDs renumerados 1..N
+        with open(config.CSV_FILE, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(config.CSV_HEADERS)
+            for i, fila in enumerate(filas, start=1):
+                writer.writerow([i] + fila)
+
+        _id_counter = len(filas) + 1
+        _completo   = len(filas) >= config.CSV_MAX_ROWS
+
+        print(f"[CSV] Fila agregada — {len(filas)}/{config.CSV_MAX_ROWS} (FIFO) — TEMP={nueva_fila[0]} HUM={nueva_fila[1]} GAS={nueva_fila[5]}")
         return True
 
 

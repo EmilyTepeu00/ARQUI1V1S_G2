@@ -163,7 +163,6 @@ def iniciar_servicios():
 
     csv_manager.inicializar()
     mqtt.iniciar()
-    arm64_runner.iniciar_cuando_csv_completo()
 
     print("[INFO] Esperando datos de la Raspberry Pi por MQTT...")
     print(f"\n[BACKEND] http://localhost:{config.FLASK_PORT}\n")

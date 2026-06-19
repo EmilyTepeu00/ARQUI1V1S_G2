@@ -73,6 +73,14 @@ def _procesar_lectura_rasp(topic, payload):
         _guardar_lectura_completa(_ultima_lectura.copy())
         _ultima_lectura = {}
 
+def _valor_a_porcentaje_humedad(valor_crudo):
+    seco, humedo = config.SUELO_VALOR_SECO, config.SUELO_VALOR_HUMEDO
+    rango = seco - humedo
+    if rango == 0:
+        return 0.0
+    pct = (seco - valor_crudo) / rango * 100
+    return round(max(0.0, min(100.0, pct)), 1)
+
 
 def _guardar_lectura_completa(l):
     ts            = l.get("ts", datetime.now().isoformat())
@@ -81,6 +89,8 @@ def _guardar_lectura_completa(l):
     estado_gas    = clasificar_gas(l["gas"])
     suelo1_val    = l.get("hum_suelo1_val", 0)
     suelo2_val    = l.get("hum_suelo2_val", 0)
+    suelo1_pct    = _valor_a_porcentaje_humedad(suelo1_val)
+    suelo2_pct    = _valor_a_porcentaje_humedad(suelo2_val)
 
     lecturas = {
         "temperatura":   l["temperatura"],
@@ -106,8 +116,8 @@ def _guardar_lectura_completa(l):
         "origen":      "RASPBERRY_PI",
         "temperatura": {"valor": l["temperatura"], "unidad": "C"},
         "hum_aire":    {"valor": l["hum_aire"],    "unidad": "%"},
-        "hum_suelo_1": {"valor": l["hum_suelo1"], "valor_num": suelo1_val, "estado": estado_suelo1},
-        "hum_suelo_2": {"valor": l["hum_suelo2"], "valor_num": suelo2_val, "estado": estado_suelo2},
+        "hum_suelo_1": {"valor": l["hum_suelo1"], "valor_num": suelo1_val, "porcentaje": suelo1_pct, "estado": estado_suelo1},
+        "hum_suelo_2": {"valor": l["hum_suelo2"], "valor_num": suelo2_val, "porcentaje": suelo2_pct, "estado": estado_suelo2},
         "luz":         {"valor": l["luz"]},
         "gas":         {"valor": l["gas"], "estado": estado_gas},
         "estado":      estado["global"],

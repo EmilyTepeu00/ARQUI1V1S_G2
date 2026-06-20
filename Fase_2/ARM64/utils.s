@@ -58,9 +58,6 @@ read_column_to_stack:
     cmp x11, #1
     blt utils_error_columna
 
-    cmp x11, #9               // ajusta segun columnas reales
-    bgt utils_error_columna
-
     // validar linea inicial
     cmp x12, #1
     blt utils_error_rango
@@ -106,7 +103,7 @@ utils_fin_contar:
     beq utils_done
 
 utils_process_line:
-    mov x14, x14, #1            // siguiente fila de datos
+    add x14, x14, #1            // siguiente fila de datos
 
     // optimizacion, linea final no seguir buscando columna
     cmp x14, x13
@@ -155,12 +152,15 @@ utils_after_column:
     b utils_process_line
 
 utils_done:
+    cmp x14, x13
+    blt utils_error_rango
+
     mov x0, sp
     mov x1, x28
     mov x2, x22
     mov x3, x27
 
-    ldr x30, [x29, #8]
+    ldp x29, x30, [sp], #16
     ret
 
 utils_open_file:
@@ -188,6 +188,11 @@ utils_read_file:
     blt utils_read_error
 
     mov x20, x0
+    // marcar fin del contenido leído
+    ldr x1, =buffer
+    add x1, x1, x20
+    mov w2, '$'
+    strb w2, [x1]
     ret
 
 utils_close_file:
@@ -240,6 +245,22 @@ utils_read_error:
     mov x0, #1
     ldr x1, =err_read
     mov x2, len_err_read
+    mov x8, #64
+    svc #0
+    b utils_exit_error
+
+utils_error_columna:
+    mov x0, #1
+    ldr x1, =err_col
+    mov x2, len_err_col
+    mov x8, #64
+    svc #0
+    b utils_exit_error
+
+utils_error_rango:
+    mov x0, #1
+    ldr x1, =err_rango
+    mov x2, len_err_rango
     mov x8, #64
     svc #0
     b utils_exit_error

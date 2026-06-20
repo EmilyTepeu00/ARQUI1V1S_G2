@@ -1,7 +1,9 @@
 // utils.s
 //
 // Entrada:
-//   x11 = columna seleccionada 
+//   x11 = columna seleccionada
+//   x12 = linea inicial
+//   x13 = linea final 
 //
 // Salida:
 //   x0 = inicio de datos en stack
@@ -21,6 +23,14 @@ err_open:
 err_read:
     .ascii "Error al leer el archivo\n"
     len_err_read = . - err_read
+
+err_col:
+    .ascii "Columna invalida\n"
+    len_err_col = . - err_col
+
+err_rango:
+    .ascii "Rango invalido\n"
+    len_err_rango = . - err_rango
 
 .bss
 
@@ -42,11 +52,52 @@ read_column_to_stack:
 
     mov x5, #10              // base 10
     mov x22, #0              // contador de numeros
+    mov x14, #0              // linea actual
+
+    //validar columna
+    cmp x11, #1
+    blt utils_error_columna
+
+    cmp x11, #9               // ajusta segun columnas reales
+    bgt utils_error_columna
+
+    // validar linea inicial
+    cmp x12, #1
+    blt utils_error_rango
+
+    // validar linea final
+    cmp x13, x12
+    blt utils_error_rango
 
     bl utils_open_file
     bl utils_read_file
     bl utils_close_file
 
+    ldr x21, =buffer
+
+    mov x16, #1               // x16 = contador de columnas en encabezado
+
+utils_contar_encabezado:
+    ldrb w23, [x21], #1
+
+    cmp w23, '$'
+    beq utils_fin_contar
+    cmp w23, #0
+    beq utils_fin_contar
+    cmp w23, #10
+    beq utils_fin_contar
+
+    cmp w23, ','
+    bne utils_contar_encabezado
+
+     add x16, x16, #1
+    b utils_contar_encabezado
+
+utils_fin_contar:
+    cmp x11, x16
+    bgt utils_error_columna   // la columna pedida no existe en este archivo
+
+    // reposicionar el puntero al inicio del buffer para procesar normal
     ldr x21, =buffer
 
     bl utils_skip_to_next_line
@@ -55,10 +106,16 @@ read_column_to_stack:
     beq utils_done
 
 utils_process_line:
-    mov x12, #1
+    mov x14, x14, #1            // siguiente fila de datos
+
+    // optimizacion, linea final no seguir buscando columna
+    cmp x14, x13
+    bgt utils_done
+
+    mov x15, #1                 // columna actual
 
 utils_find_column:
-    cmp x12, x11
+    cmp x15, x11
     beq utils_read_column
 
     bl utils_skip_to_next_column
@@ -68,13 +125,19 @@ utils_find_column:
     cmp w23, #10
     beq utils_process_line
 
-    add x12, x12, #1
+    add x15, x15, #1
     b utils_find_column
 
 utils_read_column:
     bl atoi_csv
 
     cbz x7, utils_after_column
+
+    cmp x14, x12
+    blt utils_after_column
+
+    cmp x14, x13
+    bgt utils_after_column
 
     bl utils_save_number
 

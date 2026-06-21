@@ -26,16 +26,21 @@
 
 .section .data
 
-// NOMBRE DEL ARCHIVO DE SALIDA
+// NOMBRE DEL ARCHIVO DE ENTRADA Y SALIDA
+archivo_default: .asciz "lecturas.csv"
 archivo_salida:   .asciz "resultado_anomalias.txt"
 
 // ETIQUETAS PARA EL ARCHIVO DE SALIDA
 str_module:       .asciz "MODULE=ANOMALY_DETECTION\n"
-str_total:        .asciz "TOTAL_VALUES=30\n"
+label_column:     .asciz "COLUMN="
+label_wstart:     .asciz "WINDOW_START="
+label_wend:       .asciz "WINDOW_END="
+label_count:      .asciz "COUNT="
 str_mean_label:   .asciz "MEAN="
 str_std_label:    .asciz "STD_DEV="
 str_anom_label:   .asciz "ANOMALIES="
 str_risk_label:   .asciz "SYSTEM_RISK="
+str_status_ok:    .asciz "STATUS=OK\n"
 
 // CLASIFICACION DE RIESGO
 str_risk_normal:  .asciz "NORMAL\n"
@@ -43,6 +48,12 @@ str_risk_medium:  .asciz "MEDIUM\n"
 str_risk_high:    .asciz "HIGH\n"
 
 .section .bss
+
+// BUFFERS NUMERICOS
+buf_num1:      .skip 32
+buf_num2:      .skip 32
+buf_num3:      .skip 32
+buf_num4:      .skip 32
 
 // BUFFER CONVERSION NUMERO A TEXTO
 buf_conv:      .skip 32      // Buffer temp para convertir num a texto
@@ -53,6 +64,15 @@ res_mean:      .skip 8       // Media aritmetica
 res_std:       .skip 8       // Desviacion estandar
 res_anomalias: .skip 8       // Cantidad de anomalias
 
+// ARGUMENTOS GUARDADOS EN MEMORIA
+arg_columna:      .skip 8
+arg_window_start: .skip 8
+arg_window_end:   .skip 8
+
+// COPIA DE LOS DATOS LEIDOS
+// Copia los datos aqui antes de llamar a raiz_cuadrada
+datos_copia:   .skip 240     // hasta 30 valores de 8 bytes cada uno
+
 .section .text
 .global _start
 
@@ -62,41 +82,84 @@ _start:
     // [sp] contiene argc
     // [sp+16] puntero a argv[1] (el string de la columna)
     ldr x0, [sp]            // x0 = argc (cantidad de arg)
-    cmp x0, #2              // hay al menos 1 argumento?
-    blt usar_default_3      // Si no, columna 7 por default
+    cmp x0, #5              // verificar parametros
+    blt usar_default        // columna 7 por default
 
-    // Si hay argumento, leerlo
-    ldr x0, [sp, #16]       // x0 = puntero a argv[1]
-    bl  ascii_a_int         // convierte el string a numero entero en x0
-    b   llamar_leer_3
+    ldr x17, [sp, #16]      // archivo
 
-usar_default_3:
-    mov x0, #7              // default: columna 7 = GAS
+    ldr x0, [sp, #24]       // argv[2] = linea inicial
+    bl ascii_a_int
+    mov x12, x0             // linea inicial
+
+    ldr x0, [sp, #32]       // argv[3] = linea final
+    bl ascii_a_int
+    mov x13, x0             // linea final
+
+    ldr x0, [sp, #40]       // argv[4] = columna
+    bl ascii_a_int
+    mov x11, x0             // columna
+    
+    // GUARDAR COPIAS PARA LA SALIDA EN MEMORIA
+    adr x0, arg_columna
+    str x11, [x0]
+
+    adr x0, arg_window_start
+    str x12, [x0]
+
+    adr x0, arg_window_end
+    str x13, [x0]
+
+    b llamar_leer_3
+
+usar_default:
+    mov x11, #7
+    mov x12, #1
+    mov x13, #30
+    adr x17, archivo_default
+
+    adr x0, arg_columna
+    str x11, [x0]
+
+    adr x0, arg_window_start
+    str x12, [x0]
+
+    adr x0, arg_window_end
+    str x13, [x0]
 
 llamar_leer_3:
-    // Llamar a read_column_to_stack
-    //  Se lee la columna del CSV y guarda los datos en el stack
-    // La columna a leer debe estar en x11
-    mov x11, x0
-    bl  read_column_to_stack
+    bl read_column_to_stack
 
-    // VALORES DE RETORNO DE read_column_to_stack
-    mov x24, x0     // x0 = primer dato leido
-    mov x25, x1     // x1 = limite superior
-    mov x26, x3     // x2 = cantidad real de datos leidos (N)
-    mov x27, x2     // x3 = posicion original del st ya no se usen los datos
+    mov x24, x0
+    mov x25, x1
+    mov x26, x3
+    mov x27, x2     // COUNT: cantidad de datos
+
+    // COPIAR LOS DATOS A UN BUFFER ANTES DE OTRALLAMADA
+    // luego todos los loops trabajan sobre datos_copia, no sobre x24
+    mov x6, x24
+    adr x4, datos_copia
+    mov x5, x27
+copia_loop:
+    cbz x5, copia_fin
+    ldr x9, [x6], #16
+    str x9, [x4], #8
+    sub x5, x5, #1
+    b copia_loop
+copia_fin:
 
     // CALCULAR MEDIA
     // Se usa x6 como puntero y x7 como acumulador de suma
-    mov x6, x24
+    adr x6, datos_copia
     mov x7, #0
+    mov x20, #0
 
 suma_loop:
-    cmp x6, x25
-    beq suma_fin
+    cmp x20, x27
+    bge suma_fin
 
-    ldr x9, [x6], #16   // Cada dato ocupa 16 bytes en la pila
+    ldr x9, [x6], #8    // cada dato ocupa 8 bytes en datos_copia
     add x7, x7, x9
+    add x20, x20, #1
     b suma_loop
 
 suma_fin:
@@ -104,19 +167,20 @@ suma_fin:
 
     // CALCULAR VARIANZA
     // Se usa x6 como puntero y x13 como acumulador de cuadrados
-    mov x6, x24
+    adr x6, datos_copia
     mov x13, #0     // Acumulador de cuadrados
+    mov x20, #0
 
 var_loop:
-    cmp x6, x25
-    beq var_fin
+    cmp x20, x27
+    bge var_fin
 
-    ldr x9, [x6], #16
+    ldr x9, [x6], #8
 
     sub x14, x9, x12
     mul x15, x14, x14
     add x13, x13, x15
-
+    add x20, x20, #1
     b var_loop
 
 var_fin:
@@ -130,14 +194,15 @@ var_fin:
 
     // CONTAR ANOMALIAS
     // Se usa x6 como puntero y x18 como contador de anomalias
-    mov x6, x24
+    adr x6, datos_copia
     mov x18, #0     // Contador anomalias
+    mov x20, #0
 
 anom_loop:
-    cmp x6, x25
-    beq anom_fin
+    cmp x20, x27
+    bge anom_fin
 
-    ldr x9, [x6], #16       // x9 = dato actual
+    ldr x9, [x6], #8       // x9 = dato actual
 
     // Calcular |dato - media|
     sub x19, x9, x12
@@ -149,17 +214,22 @@ anom_pos:
     // Z = |dato - media| / desv
     // Se multiplica por 10 para evitar decimales
     // |Z| >= 2 equivale a |Z|*10 >= 20
-    mov x20, #10
-    mul x19, x19, x20
+    cmp x17, #0
+    beq anom_siguiente
+
+    mov x21, #10
+    mul x19, x19, x21
     udiv x19, x19, x17
 
     cmp x19, #20
-    blt anom_siguiente
+    bge anom_contar
+    b anom_siguiente
 
-    // Si |Z| >= 2, es una anomalia
+anom_contar:
     add x18, x18, #1
 
 anom_siguiente:
+    add x20, x20, #1
     b anom_loop
 
 anom_fin:
@@ -178,25 +248,78 @@ anom_fin:
 
     // GENERAR SALIDA
     adr x0, buffer_salida
-    mov x9, #0      // x9 = contador de bytes escritos
+    mov x9, #0
 
     // MODULE=ANOMALY_DETECTION
     adr x1, str_module
     bl copiar_cadena
 
-    // TOTAL_VALUES=30
-    adr x1, str_total
+    // COLUMN=
+    adr x1, label_column
     bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_columna
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_START=
+    adr x1, label_wstart
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_window_start
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_END=
+    adr x1, label_wend
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_window_end
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // COUNT=
+    adr x1, label_count
+    bl copiar_cadena
+    mov x23, x9
+    mov x0, x27
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
 
     // MEAN=
     adr x1, str_mean_label
     bl copiar_cadena
     mov x23, x9
     mov x0, x12
-    adr x1, buf_conv
+    adr x1, buf_num2
     bl int_a_ascii
     mov x9, x23
-    adr x0, buf_conv
+    adr x0, buf_num2
     bl copiar_cadena
     bl copiar_newline
 
@@ -205,10 +328,10 @@ anom_fin:
     bl copiar_cadena
     mov x23, x9
     mov x0, x17
-    adr x1, buf_conv
+    adr x1, buf_num3
     bl int_a_ascii
     mov x9, x23
-    adr x0, buf_conv
+    adr x0, buf_num3
     bl copiar_cadena
     bl copiar_newline
 
@@ -217,10 +340,10 @@ anom_fin:
     bl copiar_cadena
     mov x23, x9
     mov x0, x18
-    adr x1, buf_conv
+    adr x1, buf_num4
     bl int_a_ascii
     mov x9, x23
-    adr x0, buf_conv
+    adr x0, buf_num4
     bl copiar_cadena
     bl copiar_newline
 
@@ -252,6 +375,10 @@ risk_normal:
     bl copiar_cadena
 
 risk_done:
+
+    // STATUS=OK
+    adr x1, str_status_ok
+    bl copiar_cadena
 
     // ESCRIBIR EL ARCHIVO resultado_anomalias.txt
     mov x8, #56

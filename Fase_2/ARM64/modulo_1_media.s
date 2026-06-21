@@ -44,11 +44,9 @@ linea_module_len = . - linea_module // El punto . significa "la posición actual
 // Calcula cuantos bytes ocupa el texto (posicion actual menos posicion inicial)
 // Se necesita para decirle al sistema operativo cuantos caracteres escribir
 
-label_total:    
-    .asciz "TOTAL_VALUES="
+label_total:     .asciz "TOTAL_VALUES="
 label_total_len = . - label_total
 
-// Sin \n porque el numero se pega en la misma linea:
 label_sumx:     .asciz "SUM_X="
 label_sumx_len = . - label_sumx
 
@@ -58,6 +56,18 @@ label_wsum_len = . - label_wsum
 label_mean:     .asciz "WEIGHTED_MEAN="
 label_mean_len = . - label_mean
 
+label_column:    .asciz "COLUMN="
+label_column_len = . - label_column
+
+label_wstart:    .asciz "WINDOW_START="
+label_wstart_len = . - label_wstart
+
+label_wend:      .asciz "WINDOW_END="
+label_wend_len = . - label_wend
+
+label_status:    .asciz "STATUS=OK\n"
+label_status_len = . - label_status
+
 .section .bss               // Reservar espacio vacio en memoria 
 
 buffer_salida:  .skip 512   // Reserva ese espacio vacio para el archivo de salida (bytes)
@@ -65,6 +75,9 @@ buf_total:  .skip 32
 buf_sumx:   .skip 32
 buf_wsum:   .skip 32
 buf_media:  .skip 32
+buf_column:  .skip 32
+buf_wstart:  .skip 32
+buf_wend:    .skip 32
 // Espacio temporal donde se convierte cada numero a texto 
 
 .section .text             // Inicio codigo ejecutable 
@@ -126,7 +139,7 @@ _start:                   // Es lo primero que se ejecuta
     mov x24, #1
 
 loop_media:
-    cmp x21, x2                    // Compara el x21 contra la cantidad real de datos (antes era #30 fijo)
+    cmp x21, x2                    // Compara el x21 contra la cantidad real de datos
     beq fin_media                  // Salta a esto si fueron iguales
 
     ldr x25, [x19]                 // x25 guarda el dato actual
@@ -156,6 +169,10 @@ fin_media:
 
     mov x9, x2               // Se guarda N aqui
 
+    mov x16, x11            // Guardamos columna 
+    mov x17, x12            // Guardamos linea inicial
+    mov x15, x13            // Guardamos linea final
+
     bl copiar_module        // texto fijo de module
     
     // TOTAL_VALUES=N 
@@ -164,6 +181,33 @@ fin_media:
     adr x1, buf_total
     bl int_a_ascii
     adr x0, buf_total
+    bl copiar_cadena
+    bl copiar_newline
+
+    // COLUMN=columna
+    bl copiar_label_column
+    mov x0, x16
+    adr x1, buf_column
+    bl int_a_ascii
+    adr x0, buf_column
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_START=linea_inicial
+    bl copiar_label_wstart
+    mov x0, x17
+    adr x1, buf_wstart
+    bl int_a_ascii
+    adr x0, buf_wstart
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_END=linea_final
+    bl copiar_label_wend
+    mov x0, x15
+    adr x1, buf_wend
+    bl int_a_ascii
+    adr x0, buf_wend
     bl copiar_cadena
     bl copiar_newline
 
@@ -197,6 +241,9 @@ fin_media:
     adr x0, buf_media
     bl copiar_cadena
     bl copiar_newline
+
+    // STATUS=OK
+     bl copiar_label_status
 
     // --------------------------------------------------------
     // Escribir el arcgivo de resultado_media.txt
@@ -323,6 +370,74 @@ lp_lmn:
     add x1, x1, #1
     b lp_lmn
 fin_lmn:
+    ldp x29, x30, [sp], #16
+    ret
+
+// Copia COLUMN=
+copiar_label_column:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_column
+lp_col:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_col
+    strb w2, [x0, x14]
+    add x14, x14, #1
+    add x1, x1, #1
+    b lp_col
+fin_col:
+    ldp x29, x30, [sp], #16
+    ret
+
+// Copia WINDOW_START=
+copiar_label_wstart:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_wstart
+lp_wst:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_wst
+    strb w2, [x0, x14]
+    add x14, x14, #1
+    add x1, x1, #1
+    b lp_wst
+fin_wst:
+    ldp x29, x30, [sp], #16
+    ret
+
+// Copia WINDOW_END=
+copiar_label_wend:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_wend
+lp_wen:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_wen
+    strb w2, [x0, x14]
+    add x14, x14, #1
+    add x1, x1, #1
+    b lp_wen
+fin_wen:
+    ldp x29, x30, [sp], #16
+    ret
+
+// Copia STATUS=OK 
+copiar_label_status:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_status
+lp_sta:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_sta
+    strb w2, [x0, x14]
+    add x14, x14, #1
+    add x1, x1, #1
+    b lp_sta
+fin_sta:
     ldp x29, x30, [sp], #16
     ret
 

@@ -160,7 +160,8 @@ utils_done:
     mov x2, x22
     mov x3, x27
 
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [x28]
+    mov sp, x27
     ret
 
 utils_open_file:

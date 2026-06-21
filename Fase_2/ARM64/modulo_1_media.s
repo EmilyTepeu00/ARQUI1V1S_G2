@@ -1,13 +1,16 @@
 // Alison Melysa Pérez Blanco - Media Aritmetica Ponderada
 
 // La formula que uso es:
-//   MEDIA_PONDERADA = S(Xi * Wi) / SWi   donde Wi va de 1 a N
+// MEDIA_PONDERADA = S(Xi * Wi) / SWi   donde Wi va de 1 a N
 
-// Para leer el CSV uso read_column_to_stack de utils.s (deja los
-// datos guardados en el stack, no en un arreglo fijo como antes)
-// Para convertir numeros a texto uso int_a_ascii de utils.s
+// Para leer el CSV uso read_column_to_stack de utils.s. Ahora recibe
+// columna (x11), linea inicial (x12) y linea final (x13), y deja los
+// datos guardados en el stack con cantidad variable N.
+// Para convertir los argumentos de texto (columna, linea inicial, linea
+// final) a numero uso ascii_a_int de utils.s.
+// Para convertir numeros a texto uso int_a_ascii de utils.s.
 // La cantidad real de datos leidos viene en x2 al regresar de
-// read_column_to_stack (ya no se asume 30 datos fijos)
+// read_column_to_stack.
 
 // DECLARACION DE SIMBOLOS EXTERNOS
 // Estas funciones estan definidas en utils.s
@@ -15,8 +18,9 @@
 // al momento de ensamblar y enlazar el proyecto completo
 
 // ------------------------------------------------------------
-.extern read_column_to_stack   // Funcion que lee la columna del CSV y guarda los datos en el stack
-.extern int_a_ascii            // Funcion que convierte un entero a string ASCII
+.extern read_column_to_stack   // Lee la columna del CSV en el rango [linea_inicial, linea_final] y guarda los datos en el stack
+.extern int_a_ascii            // Convierte un entero a string ASCII (para escribir resultados)
+.extern ascii_a_int            // Convierte texto a entero
 // ------------------------------------------------------------
 // SECCION .data
 // Aqui van todas las cadenas y constantes que tienen valor
@@ -40,10 +44,9 @@ linea_module_len = . - linea_module // El punto . significa "la posición actual
 // Calcula cuantos bytes ocupa el texto (posicion actual menos posicion inicial)
 // Se necesita para decirle al sistema operativo cuantos caracteres escribir
 
-linea_total:
-    .asciz "TOTAL_VALUES=30\n"
-linea_total_len = . - linea_total
-
+label_total:    
+    .asciz "TOTAL_VALUES="
+label_total_len = . - label_total
 
 // Sin \n porque el numero se pega en la misma linea:
 label_sumx:     .asciz "SUM_X="
@@ -58,6 +61,7 @@ label_mean_len = . - label_mean
 .section .bss               // Reservar espacio vacio en memoria 
 
 buffer_salida:  .skip 512   // Reserva ese espacio vacio para el archivo de salida (bytes)
+buf_total:  .skip 32
 buf_sumx:   .skip 32
 buf_wsum:   .skip 32
 buf_media:  .skip 32
@@ -74,13 +78,21 @@ _start:                   // Es lo primero que se ejecuta
     // un puntero al string de argv[1]
     // --------------------------------------------------------
 
-    ldr x0, [sp, #16]    // A sp le suma 16 bytes y lo guarda en x0 (aqui es donde esta el numero de columna)
-    //los corchetes nos ayudan A ir a la direccion y extraer el contenido de ahi
-    bl  ascii_a_int      // Convierte el string a numero entero en x0, bl llama a una funcion
+    ldr x0, [sp, #16]        // Columna
+    bl  ascii_a_int   
 
-    // x0 tiene el numero de columna correcto, pero read_column_to_stack lo espera en x11
-    mov x11, x0
+    mov x11, x0              // Columna seleccionada
+
+    ldr x0, [sp, #24]        // Linea inicial 
+    bl  ascii_a_int
+    mov x12, x0              // Guarda linea inicial
+
+    ldr x0, [sp, #32]        // Linea final
+    bl  ascii_a_int
+    mov x13, x0              // Guarda linea final
+
     bl read_column_to_stack
+
     // Al regresar de read_column_to_stack:
     // x0 = direccion del ULTIMO dato leido (el mas reciente, quedo arriba en el stack)
     // x1 = limite superior, una posicion arriba de donde quedo el primer dato leido
@@ -88,6 +100,11 @@ _start:                   // Es lo primero que se ejecuta
     // x3 = posicion original del stack, para restaurarlo cuando ya no se usen los datos
     mov x28, x3          // guardo en x28 donde restaurar el stack al terminar
     sub x19, x1, #16     // x19 = direccion del primer dato leido (cada dato ocupa 16 bytes en el stack)
+
+
+    // Si no hay datos en el rango pedido, salir antes de dividir entre 0 mas adelante
+    cmp x2, #1
+    blt error_datos_insuficientes
 
     // --------------------------------------------------------
     // Calculo de media ponderada con pesos Wi = 1, 2, 3 ... 30
@@ -137,8 +154,18 @@ fin_media:
     mov x14, #0              // x14 registro que lleva la cuenta de cuántos bytes se han escrito en buffer_salida
     // Empieza en 0 porque esta vacio y siempre apunta al final de lo que se escribio
 
+    mov x9, x2               // Se guarda N aqui
+
     bl copiar_module        // texto fijo de module
-    bl copiar_total         // texto fijo de total
+    
+    // TOTAL_VALUES=N 
+    bl copiar_label_total
+    mov x0, x9              // x9 = N
+    adr x1, buf_total
+    bl int_a_ascii
+    adr x0, buf_total
+    bl copiar_cadena
+    bl copiar_newline
 
     // SUM_X=valor
     bl copiar_label_sumx    // Copia el texto "SUM_X=" al buffer de salida.
@@ -208,6 +235,11 @@ fin_media:
     mov x0, #0  // El 0 significa que el programa terminó con éxito
     svc #0
 
+error_datos_insuficientes: // se llega aqui si el rango pedido no trajo ningun dato (N=0)
+    mov sp, x28            // restaurar el stack que habia reservado read_column_to_stack
+    mov x8, #93            // syscall exit
+    mov x0, #1             // codigo de salida 1 = error
+    svc #0
 
 // Funciones auxiliares para copiar texto al buffer
 
@@ -230,10 +262,10 @@ fin_mod:
     ldp x29, x30, [sp], #16   // ldp recupera registros, sube 16 bytes 
     ret                       // return Ve a la dirección que tiene x30 y continúa ejecutando desde ahí
 
-copiar_total:                 // Copia TOTAL_VALUES=30
+copiar_label_total:           // copia el texto "TOTAL_VALUES=" al buffer de salida
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
-    adr x1, linea_total
+    adr x1, label_total
 lp_tot:
     ldrb w2, [x1]
     cmp w2, #0

@@ -17,33 +17,55 @@ nombre_salida:
 
 linea_module:
     .asciz "MODULE=VARIANCE\n"
-linea_module_len = . - linea_module
 
-linea_total:
-    .asciz "TOTAL_VALUES=30\n"
-linea_total_len = . - linea_total
-
-label_mean:     .asciz "MEAN="
-label_var:      .asciz "VARIANCE="
-label_desv:     .asciz "STD_DEV="
+label_column:    .asciz "COLUMN="
+label_wstart:    .asciz "WINDOW_START="
+label_wend:      .asciz "WINDOW_END="
+label_count:     .asciz "COUNT="
+label_mean:      .asciz "MEAN="
+label_var:       .asciz "VARIANCE="
+label_desv:      .asciz "STD_DEV="
+label_status:    .asciz "STATUS=OK\n"
 
 .bss
 
 buffer_salida: .skip 512
-buf_media:     .skip 32
-buf_var:       .skip 32
-buf_desv:      .skip 32
+buf_num1:      .skip 32
+buf_num2:      .skip 32
+buf_num3:      .skip 32
 
 .text
 .global _start
 
 _start:
-    // leer argumento de columna
-    ldr x0, [sp, #16]
-    bl ascii_a_int
+    // leer los 4 argumento de columna
+    ldr x17, [sp, #16]              // x17 = nombre del archivo
 
-    mov x11, x0
+    ldr x0, [sp, #24]               // argv[2] = linea inicial
+    bl ascii_a_int
+    mov x12, x0                    
+
+    ldr x0, [sp, #32]               // argv[3] = linea final
+    bl ascii_a_int
+    mov x13, x0                   
+
+    ldr x0, [sp, #40]               // argv[4] = columna
+    bl ascii_a_int
+    mov x11, x0                   
+
+    //guardamos copias
+    sub sp, sp, #32
+    str x11, [sp]        // columna
+    str x12, [sp, #8]    // linea inicial
+    str x13, [sp, #16]   // linea final
     bl read_column_to_stack
+
+    //recuperamos las copias despues de la llamada
+    ldr x18, [sp]         // x18 = columna
+    ldr x17, [sp, #8]     // x17 = linea inicial 
+    ldr x16, [sp, #16]    // x16 = linea final 
+    add sp, sp, #32
+
 
     // x0 = inicio datos
     // x1 = limite superior
@@ -88,13 +110,13 @@ var_loop:
     b var_loop
 
 var_fin:
-    udiv x16, x13, x27          // x16 = VARIANZA
+    udiv x28, x13, x27          // x28 = VARIANZA
 
 
 //Calcular desviacion estandar
-    mov x0, x16
+    mov x0, x28
     bl raiz_cuadrada
-    mov x17, x0                  // x17 = STD_DEV
+    mov x29, x0                  // x29 = STD_DEV
 
     // restaurar el stack 
     mov sp, x26
@@ -104,37 +126,86 @@ var_fin:
     mov x9, #0
 
     bl copiar_module
-    bl copiar_total
 
+    // COLUMN= numero
+    bl copiar_label_column
+    mov x23, x9
+    mov x0, x18
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_START= linea inicial
+    bl copiar_label_wstart
+    mov x23, x9
+    mov x0, x17
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_END= linea final
+    bl copiar_label_wend
+    mov x23, x9
+    mov x0, x16
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // COUNT=<cantidad>
+    bl copiar_label_count
+    mov x23, x9
+    mov x0, x27
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // MEAN= media
     bl copiar_label_mean
     mov x23, x9
     mov x0, x12
-    adr x1, buf_media
+    adr x1, buf_num1
     bl int_a_ascii
     mov x9, x23
-    adr x0, buf_media
+    adr x0, buf_num1
     bl copiar_cadena
     bl copiar_newline
 
+    // VARIANCE= varianza
     bl copiar_label_var
     mov x23, x9
-    mov x0, x16
-    adr x1, buf_var
+    mov x0, x28
+    adr x1, buf_num2
     bl int_a_ascii
     mov x9, x23
-    adr x0, buf_var
+    adr x0, buf_num2
     bl copiar_cadena
     bl copiar_newline
 
+    // STD_DEV= desviacion
     bl copiar_label_desv
     mov x23, x9
-    mov x0, x17
-    adr x1, buf_desv
+    mov x0, x29
+    adr x1, buf_num3
     bl int_a_ascii
     mov x9, x23
-    adr x0, buf_desv
+    adr x0, buf_num3
     bl copiar_cadena
     bl copiar_newline
+
+    // STATUS= ok
+    bl copiar_status
 
     // escribir archivo
     mov x8, #56
@@ -165,7 +236,7 @@ var_fin:
     mov x0, #0
     svc #0
 
-// Newton-Raphson
+// metodo de Newton Raphson
 raiz_cuadrada:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
@@ -211,6 +282,7 @@ fin_raiz:
     ret
 
 
+//funciones auxiliares
 copiar_module:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
@@ -227,19 +299,67 @@ fin_cm:
     ldp x29, x30, [sp], #16
     ret
 
-copiar_total:
+copiar_label_column:
     stp x29, x30, [sp, #-16]!
     adr x0, buffer_salida
-    adr x1, linea_total
-loop_ct:
+    adr x1, label_column
+loop_clc:
     ldrb w2, [x1]
     cmp w2, #0
-    beq fin_ct
+    beq fin_clc
     strb w2, [x0, x9]
     add x9, x9, #1
     add x1, x1, #1
-    b loop_ct
-fin_ct:
+    b loop_clc
+fin_clc:
+    ldp x29, x30, [sp], #16
+    ret
+
+copiar_label_wstart:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_wstart
+loop_clws:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_clws
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    add x1, x1, #1
+    b loop_clws
+fin_clws:
+    ldp x29, x30, [sp], #16
+    ret
+
+copiar_label_wend:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_wend
+loop_clwe:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_clwe
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    add x1, x1, #1
+    b loop_clwe
+fin_clwe:
+    ldp x29, x30, [sp], #16
+    ret
+
+copiar_label_count:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_count
+loop_clcnt:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_clcnt
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    add x1, x1, #1
+    b loop_clcnt
+fin_clcnt:
     ldp x29, x30, [sp], #16
     ret
 
@@ -288,6 +408,22 @@ loop_cld:
     add x1, x1, #1
     b loop_cld
 fin_cld:
+    ldp x29, x30, [sp], #16
+    ret
+
+copiar_status:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    adr x1, label_status
+loop_cst:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_cst
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    add x1, x1, #1
+    b loop_cst
+fin_cst:
     ldp x29, x30, [sp], #16
     ret
 

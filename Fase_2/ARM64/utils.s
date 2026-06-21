@@ -152,11 +152,12 @@ utils_done:
     cmp x14, x13
     blt utils_error_rango
 
-    mov x0, x28      // inicio de datos
-    mov x1, sp        // limite final 
+    mov x0, sp        // inicio de datos (ascendente)
+    mov x1, x28       // limite final 
     mov x2, x22     
     mov x3, x28       // posicion para restaurar
 
+    mov sp, x28
     mov x30, x26      
     ret
 

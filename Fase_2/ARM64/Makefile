@@ -11,12 +11,12 @@
 # ============================================================
 
 # En Raspberry Pi (nativo):
-AS = as
-LD = ld
+# AS = as
+# LD = ld
 
 # En PC con cross-compiler, comentar las dos de arriba y usar estas:
-# AS = aarch64-linux-gnu-as
-# LD = aarch64-linux-gnu-ld
+AS = aarch64-linux-gnu-as
+LD = aarch64-linux-gnu-ld
 
 UTILS_OBJ = utils.o
 

@@ -13,9 +13,6 @@
 
 .data
 
-filename:
-    .asciz "lecturas.csv"
-
 err_open:
     .ascii "Error al abrir el archivo\n"
     len_err_open = . - err_open
@@ -163,7 +160,7 @@ utils_done:
 
 utils_open_file:
     mov x0, #-100
-    ldr x1, =filename
+    mov x1, x17
     mov x2, #0
     mov x3, #0
     mov x8, #56

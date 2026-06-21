@@ -44,11 +44,8 @@ buffer:
 .global ascii_a_int
 
 read_column_to_stack:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-
-    mov x28, sp              // x28 = limite superior de datos
-    add x27, x28, #16        // x27 = posicion para restaurar stack
+    mov x26, x30
+    mov x28, sp
 
     mov x5, #10              // base 10
     mov x22, #0              // contador de numeros
@@ -155,13 +152,12 @@ utils_done:
     cmp x14, x13
     blt utils_error_rango
 
-    mov x0, sp
-    mov x1, x28
-    mov x2, x22
-    mov x3, x27
+    mov x0, x28      // inicio de datos
+    mov x1, sp        // limite final 
+    mov x2, x22     
+    mov x3, x28       // posicion para restaurar
 
-    ldp x29, x30, [x28]
-    mov sp, x27
+    mov x30, x26      
     ret
 
 utils_open_file:

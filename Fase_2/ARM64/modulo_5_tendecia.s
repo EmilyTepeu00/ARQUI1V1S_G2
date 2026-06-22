@@ -12,6 +12,18 @@ msg_no_arg:
  
 str_module:
     .asciz "MODULE=ADVANCED_TREND\n"
+
+str_column:
+    .asciz "COLUMN="
+
+str_wstart:
+    .asciz "WINDOW_START="
+
+str_wend:
+    .asciz "WINDOW_END="
+
+str_count:
+    .asciz "COUNT="
  
 str_total:
     .asciz "TOTAL_VALUES="
@@ -48,11 +60,23 @@ str_minus:
  
 str_nl:
     .asciz "\n"
+
+str_status_ok:
+    .asciz "STATUS=OK\n"
  
 .bss
  
 num_buffer:
     .skip 32
+
+g_columna:
+    .skip 8
+
+g_wstart:
+    .skip 8
+
+g_wend:
+    .skip 8
  
 .text
 
@@ -68,13 +92,35 @@ num_buffer:
 
 _start:
 
-    ldr x0, [sp, #16]       //Toma el puntero al texto del numero de columna a trabajar
-    bl ascii_a_int          //Convierte el texto a numero real (resultado en x0)
+    ldr x0, [sp, #24]       //argv[2] = linea inicial
+    bl ascii_a_int
     cmp x0, #0
-    beq no_argumento        //Error si el texto extraido no es un numero valido
+    beq no_argumento
+    mov x6, x0              //Guarda linea inicial en x6
 
-    mov x11, x0             //Mueve el numero de columna ingresado
-    bl read_column_to_stack //Esta funcion abre el csv, lo lee y guarda los 30 datos
+    ldr x0, [sp, #32]       //argv[3] = linea final
+    bl ascii_a_int
+    cmp x0, #0
+    beq no_argumento
+    mov x7, x0              //Guarda linea final en x7
+
+    ldr x0, [sp, #40]       //argv[4] = columna
+    bl ascii_a_int
+    cmp x0, #0
+    beq no_argumento
+    mov x9, x0              //Guarda columna en x9
+
+    ldr x0, =g_columna
+    str x9, [x0]            //Guarda columna en memoria, read_column_to_stack usa x7 internamente
+    ldr x0, =g_wstart
+    str x6, [x0]            //Guarda linea inicial en memoria
+    ldr x0, =g_wend
+    str x7, [x0]            //Guarda linea final en memoria
+
+    mov x11, x9             //Columna pedida por el usuario
+    mov x12, x6             //Linea inicial pedida por el usuario
+    mov x13, x7             //Linea final pedida por el usuario
+    bl read_column_to_stack //Esta funcion abre el csv, lo lee y guarda solo el rango pedido
  
     mov x24, x0             //Se guardan 4 datos importantes (Ultimo dato guardado, donde se guardo el ultimo dato, datos totales leidos, dato extra para ordenar de nuevo la pila)
     mov x25, x1
@@ -147,6 +193,49 @@ fin_calculo:
  
     ldr x1, =str_module         //Se empiezan a escribir los resultados en el archivo de salida, se cargan las cadenas de texto y se convierten los numeros a texto para escribirlos
     bl write_str                //Se escribe el nombre del modulo
+
+    ldr x1, =str_column         //Se escribe la columna analizada
+    bl write_str
+    ldr x0, =g_columna
+    ldr x0, [x0]
+    ldr x1, =num_buffer
+    bl int_a_ascii
+    ldr x1, =num_buffer
+    bl write_str
+    ldr x1, =str_nl
+    bl write_str
+
+    ldr x1, =str_wstart         //Se escribe la linea inicial pedida
+    bl write_str
+    ldr x0, =g_wstart
+    ldr x0, [x0]
+    ldr x1, =num_buffer
+    bl int_a_ascii
+    ldr x1, =num_buffer
+    bl write_str
+    ldr x1, =str_nl
+    bl write_str
+
+    ldr x1, =str_wend           //Se escribe la linea final usada
+    bl write_str
+    ldr x0, =g_wend
+    ldr x0, [x0]
+    ldr x1, =num_buffer
+    bl int_a_ascii
+    ldr x1, =num_buffer
+    bl write_str
+    ldr x1, =str_nl
+    bl write_str
+
+    ldr x1, =str_count          //Se escribe la cantidad real de datos usados
+    bl write_str
+    mov x0, x26
+    ldr x1, =num_buffer
+    bl int_a_ascii
+    ldr x1, =num_buffer
+    bl write_str
+    ldr x1, =str_nl
+    bl write_str
  
     ldr x1, =str_total          //Se escribe el total de valores leidos
     bl write_str                //Se convierte el total de valores leidos a texto para escribirlo
@@ -229,17 +318,22 @@ accum_convertir:                //Se convierte la diferencia acumulada a texto p
 
     ldr x1, =str_stable            //Si la diferencia acumulada es cero, la tendencia es estable
     bl write_str
-    b cerrar_archivo
+    b escribir_status_ok
 
     trend_up:
     ldr x1, =str_up                //Escribe la tendencia al alza
     bl write_str                   //Escribe la tendencia al alza
-    b cerrar_archivo               //Termina el programa cerrando el archivo de salida
+    b escribir_status_ok
 
     trend_down:
     ldr x1, =str_down              //Escribe la tendencia a la baja
     bl write_str                   //Escribe la tendencia a la baja
-    
+
+escribir_status_ok:
+    ldr x1, =str_status_ok         //Se escribe el status final del calculo
+    bl write_str
+    b cerrar_archivo
+
 cerrar_archivo:
     mov x0, x23                    //Se cierra el archivo de salida
     mov x8, #57
@@ -247,6 +341,7 @@ cerrar_archivo:
 
     mov sp, x27                    //Se restaura el stack pointer antes de terminar el programa
     b salir_ok
+    
 no_argumento:
     mov x0, #1                     //Si no se ingreso un numero de columna o el numero de columna es menor a 2, se muestra un mensaje de error
     ldr x1, =msg_no_arg            //Se carga la direccion del mensaje de error

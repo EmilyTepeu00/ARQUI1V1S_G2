@@ -86,23 +86,22 @@ buf_wend:    .skip 32
 _start:                   // Es lo primero que se ejecuta
 
     // --------------------------------------------------------
-    // Lectura de argv[1]: el numero de columna que manda Python
-    // Al arrancar el programa, [sp] tiene argc y [sp+16] tiene
-    // un puntero al string de argv[1]
+    // Archivo_entrada linea_inicial linea_final columna_sensor
     // --------------------------------------------------------
 
-    ldr x0, [sp, #16]        // Columna
-    bl  ascii_a_int   
+    ldr x17, [sp, #16]       // Archivo entrada
 
-    mov x11, x0              // Columna seleccionada
-
-    ldr x0, [sp, #24]        // Linea inicial 
+    ldr x0, [sp, #24]        // Linea inicial
     bl  ascii_a_int
     mov x12, x0              // Guarda linea inicial
 
     ldr x0, [sp, #32]        // Linea final
     bl  ascii_a_int
     mov x13, x0              // Guarda linea final
+
+    ldr x0, [sp, #40]        // Columna sensor
+    bl  ascii_a_int
+    mov x11, x0              // Columna seleccionada
 
     bl read_column_to_stack
 

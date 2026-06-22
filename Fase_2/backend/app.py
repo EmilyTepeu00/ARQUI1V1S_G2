@@ -186,6 +186,113 @@ def api_arm64_ejecutar():
     })
 
 
+# ANALISIS HISTORIO ARM64 CON RANGO
+# archivo, linea_inicial, linea_final, columna
+@app.route("/api/analisis/historico", methods=["POST"])
+def api_analisis_historico():
+    try:
+        datos = request.get_json()
+        if not datos:
+            return jsonify({
+                "status": "ERROR",
+                "error": "INVALID_REQUEST",
+                "detail": "Se requiere body JSON"
+            }), 400
+
+        archivo = datos.get("archivo", "lecturas.csv")
+        linea_inicial = datos.get("linea_inicial", 1)
+        linea_final = datos.get("linea_final", 30)
+        columna = datos.get("columna", "TEMP").upper()
+
+        # Validaciones
+        if linea_inicial < 1:
+            return jsonify({
+                "status": "ERROR",
+                "error": "INVALID_RANGE",
+                "detail": "La linea inicial debe ser mayor o igual a 1"
+            }), 400
+
+        if linea_final < linea_inicial:
+            return jsonify({
+                "status": "ERROR",
+                "error": "INVALID_RANGE",
+                "detail": "La linea final debe ser mayor o igual a la linea inicial"
+            }), 400
+
+        if columna not in arm64_runner.VARIABLES:
+            return jsonify({
+                "status": "ERROR",
+                "error": "INVALID_COLUMN",
+                "detail": f"Columna '{columna}' no valida. Opciones: {list(arm64_runner.VARIABLES.keys())}"
+            }), 400
+
+        # Verificar que el archivo existe
+        import os
+        ruta_archivo = os.path.join(os.path.dirname(__file__), archivo)
+        if not os.path.exists(ruta_archivo):
+            return jsonify({
+                "status": "ERROR",
+                "error": "FILE_NOT_FOUND",
+                "detail": f"Archivo '{archivo}' no encontrado"
+            }), 400
+
+        # Ejecutar analisis historico con rango
+        import threading
+        resultado = {}
+
+        def ejecutar_con_rango():
+            nonlocal resultado
+            # Copiar CSV y ejecutar modulos con rango
+            import arm64_runner
+            import csv_manager
+            import time
+
+            # Asegurar que el CSV este actualizado
+            csv_manager.inicializar()
+
+            # Obtener el indice de columna
+            col_index = arm64_runner.VARIABLES.get(columna, 1)
+
+            # Compilar modulos si es necesario
+            arm64_runner.compilar_modulos()
+
+            # Ejecutar modulos con el rango especificado
+            arm64_runner.ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final)
+
+            # Leer resultados
+            resultados = arm64_runner.leer_resultados(columna)
+            resultado = {
+                "status": "OK",
+                "resultados": resultados,
+                "columna": columna,
+                "linea_inicial": linea_inicial,
+                "linea_final": linea_final,
+                "archivo": archivo
+            }
+
+        # Ejecutar en hilo separado para no bloquear
+        import threading
+        hilo = threading.Thread(target=ejecutar_con_rango, daemon=True)
+        hilo.start()
+        hilo.join(timeout=30)
+
+        if resultado:
+            return jsonify(resultado)
+        else:
+            return jsonify({
+                "status": "ERROR",
+                "error": "TIMEOUT",
+                "detail": "El analisis tomo demasiado tiempo"
+            }), 408
+
+    except Exception as e:
+        return jsonify({
+            "status": "ERROR",
+            "error": "INTERNAL_ERROR",
+            "detail": str(e)
+        }), 500
+
+
 def iniciar_servicios():
     print("=" * 55)
     print("  INVERNADERO INTELIGENTE IoT — Backend")

@@ -136,6 +136,38 @@ def ejecutar_modulos(col_index):
             print(f"[ARM64] Timeout en {m['nombre']}")
 
 
+# EJECUTAR LOS MODULOS CON RANGO ESPECIFICO
+def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
+    print(f"[ARM64] Ejecutando modulos con columna={col_index}, rango={linea_inicial}-{linea_final}...")
+
+    col_str = str(col_index)
+    inicio_str = str(linea_inicial)
+    fin_str = str(linea_final)
+
+    for m in MODULOS:
+        bin_ = os.path.join(ARM64_DIR, m["binario"])
+        if not os.path.exists(bin_):
+            print(f"[ARM64] Binario {m['binario']} no existe — saltando")
+            continue
+        try:
+            # Ejecutar con: binario columna inicio fin
+            r = subprocess.run(
+                [bin_, col_str, inicio_str, fin_str],
+                capture_output=True, text=True, cwd=ARM64_DIR, timeout=15
+            )
+            if r.returncode == 0:
+                print(f"[ARM64] {m['nombre']} ejecutado OK (rango {linea_inicial}-{linea_final})")
+                if r.stdout:
+                    print(r.stdout)
+            else:
+                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): {r.stderr}")
+        except FileNotFoundError:
+            print(f"[ARM64] Binario no encontrado: {bin_}")
+            break
+        except subprocess.TimeoutExpired:
+            print(f"[ARM64] Timeout en {m['nombre']}")
+
+
 def parsear_txt(ruta):
     resultado = {}
     if not os.path.exists(ruta):

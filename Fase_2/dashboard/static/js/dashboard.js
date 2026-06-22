@@ -214,6 +214,91 @@ async function cicloCompleto() {
     if (graficasActualizadas % 6 === 0) await actualizarARM64();
 }
 
+// ANALISIS HISTORICO
+async function ejecutarAnalisisHistorico() {
+    const archivo = document.getElementById('archivoCSV').value.trim();
+    const inicio = parseInt(document.getElementById('lineaInicio').value);
+    const fin = parseInt(document.getElementById('lineaFin').value);
+    const columna = document.getElementById('columnaSelect').value;
+
+    const resultadoDiv = document.getElementById('analisisResultado');
+    const contenidoDiv = document.getElementById('analisisContenido');
+    const errorDiv = document.getElementById('analisisError');
+
+    // Ocultar resultados anteriores
+    resultadoDiv.style.display = 'none';
+    errorDiv.style.display = 'none';
+
+    // Validar
+    if (!archivo) {
+        errorDiv.textContent = 'Error: Debe especificar un archivo CSV';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    if (inicio < 1) {
+        errorDiv.textContent = 'Error: La linea inicial debe ser mayor o igual a 1';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    if (fin < inicio) {
+        errorDiv.textContent = 'Error: La linea final debe ser mayor o igual a la linea inicial';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/analisis/historico', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                archivo: archivo,
+                linea_inicial: inicio,
+                linea_final: fin,
+                columna: columna
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.status === 'ERROR') {
+            errorDiv.textContent = 'Error ' + data.error + ': ' + data.detail;
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        // Mostrar resultados
+        let html = '<div style="font-size:0.85rem;">';
+        html += '<p><strong>Archivo:</strong> ' + data.archivo + '</p>';
+        html += '<p><strong>Rango:</strong> ' + data.linea_inicial + ' - ' + data.linea_final + '</p>';
+        html += '<p><strong>Columna:</strong> ' + data.columna + '</p>';
+        html += '<hr style="margin:8px 0;">';
+
+        if (data.resultados && data.resultados.length > 0) {
+            data.resultados.forEach(function(r) {
+                html += '<div style="background:#f1f5f9;padding:8px 12px;border-radius:4px;margin-bottom:6px;">';
+                html += '<strong>' + (r.tipo || r.modulo || 'Modulo') + '</strong><br>';
+                for (var key in r) {
+                    if (key !== 'modulo' && key !== 'tipo' && key !== 'variable' && key !== 'timestamp') {
+                        html += '<span style="font-size:0.75rem;color:#475569;">' + key + ':</span> ';
+                        html += '<span style="font-size:0.8rem;font-weight:500;">' + r[key] + '</span><br>';
+                    }
+                }
+                html += '</div>';
+            });
+        } else {
+            html += '<p style="color:#6c757d;">No se encontraron resultados</p>';
+        }
+
+        html += '</div>';
+        contenidoDiv.innerHTML = html;
+        resultadoDiv.style.display = 'block';
+
+    } catch (e) {
+        errorDiv.textContent = 'Error de conexion: ' + e.message;
+        errorDiv.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initCharts();
 

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Invernadero Inteligente</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-container {
+            background: #ffffff;
+            padding: 70px 60px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 520px;
+        }
+        .login-container .logo {
+            text-align: center;
+            font-size: 3.2rem;
+            margin-bottom: 6px;
+        }
+        .login-container h1 {
+            font-size: 2.2rem;
+            text-align: center;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .login-container .subtitle {
+            text-align: center;
+            color: #64748b;
+            font-size: 1rem;
+            margin-bottom: 6px;
+        }
+        .login-container .grupo {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 32px;
+            letter-spacing: 1.5px;
+            font-weight: 500;
+        }
+        .login-container label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            margin-bottom: 22px;
+            transition: border-color 0.15s;
+            background: #f8fafc;
+        }
+        .login-container input:focus {
+            border-color: #2563eb;
+            outline: none;
+            background: #ffffff;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 17px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-top: 8px;
+        }
+        .login-container button:hover {
+            background: #1d4ed8;
+        }
+        .login-container .error {
+            color: #dc2626;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 16px;
+            display: none;
+        }
+        .login-container .info {
+            text-align: center;
+            font-size: 0.82rem;
+            color: #94a3b8;
+            margin-top: 26px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 22px;
+        }
+        .login-container .info strong {
+            color: #0f172a;
+        }
+        .login-container .info .creds {
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 3px 14px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #0f172a;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Invernadero IoT</h1>
+        <p class="subtitle">Monitoreo y control inteligente</p>
+        <p class="grupo">— Grupo 2 —</p>
+
+        <form id="loginForm" method="POST" action="/login">
+            <label for="usuario">Usuario</label>
+            <input type="text" id="usuario" name="usuario" placeholder="Ingresa tu usuario" required>
+
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" placeholder="Ingresa tu contraseña" required>
+
+            <button type="submit">Iniciar sesion</button>
+
+            <div id="errorMsg" class="error">Usuario o contraseña incorrectos</div>
+        </form>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error') === '1') {
+            document.getElementById('errorMsg').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

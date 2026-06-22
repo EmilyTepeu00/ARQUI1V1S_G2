@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_cors import CORS
 from datetime import datetime
 
@@ -10,18 +10,51 @@ import mqtt_client as mqtt
 import arm64_runner
 from state import procesar_comando, obtener_estado
 
+# LOGIN
+USUARIO_PRUEBA = "user"
+CONTRASENA_PRUEBA = "1234"
+
 app = Flask(
     __name__,
     template_folder=os.path.join("..", "dashboard", "templates"),
     static_folder=os.path.join("..", "dashboard", "static")
 )
+app.secret_key = config.SECRET_KEY
 CORS(app)
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        usuario = request.form.get("usuario", "").strip()
+        password = request.form.get("password", "").strip()
+
+        if usuario == USUARIO_PRUEBA and password == CONTRASENA_PRUEBA:
+            session["usuario"] = usuario
+            session["logueado"] = True
+            return redirect(url_for("inicio"))
+        else:
+            return redirect(url_for("login", error=1))
+
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/api/verificar_sesion")
+def verificar_sesion():
+    return jsonify({
+        "logueado": session.get("logueado", False),
+        "usuario": session.get("usuario", "")
+    })
 
 @app.route("/")
 def inicio():
+    if not session.get("logueado", False):
+        return redirect(url_for("login"))
     return render_template("index.html")
-
 
 @app.route("/api/estado")
 def api_estado():

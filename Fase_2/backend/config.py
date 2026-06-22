@@ -60,3 +60,4 @@ SUELO_VALOR_HUMEDO = 0
 # Flask
 FLASK_HOST = "0.0.0.0"
 FLASK_PORT = 5000
+SECRET_KEY = "invernadero_secret_key_2026"

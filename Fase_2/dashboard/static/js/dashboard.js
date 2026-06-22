@@ -261,6 +261,8 @@ async function ejecutarAnalisisHistorico() {
         const data = await res.json();
 
         if (data.status === 'ERROR') {
+            // Mostrar error estructurado
+            mostrarError(data.error, data.detail);
             errorDiv.textContent = 'Error ' + data.error + ': ' + data.detail;
             errorDiv.style.display = 'block';
             return;
@@ -296,6 +298,47 @@ async function ejecutarAnalisisHistorico() {
     } catch (e) {
         errorDiv.textContent = 'Error de conexion: ' + e.message;
         errorDiv.style.display = 'block';
+    }
+}
+
+// MOSTRAR ERRORES ESTRUCTURADOS
+function mostrarError(tipo, detalle) {
+    const erroresList = document.getElementById('erroresList');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    let color = '';
+    
+    if (tipo === 'INVALID_RANGE') {
+        color = '#eab308';
+    } else if (tipo === 'FILE_NOT_FOUND') {
+        color = '#dc2626';
+    } else if (tipo === 'INVALID_COLUMN') {
+        color = '#eab308';
+    } else if (tipo === 'NON_NUMERIC_DATA') {
+        color = '#dc2626';
+    } else if (tipo === 'EMPTY_FILE') {
+        color = '#dc2626';
+    } else if (tipo === 'FILE_READ_ERROR') {
+        color = '#dc2626';
+    } else {
+        color = '#dc2626';
+    }
+    
+    const html = `
+        <div class="evento" style="border-left-color: ${color};">
+            <div class="evento-fecha">${timestamp}</div>
+            <div class="evento-texto">
+                <strong>${tipo}</strong>
+                <span style="color:#6c757d;font-size:0.8rem;display:block;margin-top:4px;">${detalle}</span>
+            </div>
+        </div>
+    `;
+    
+    // Insertar al inicio (mas reciente arriba)
+    if (erroresList.innerHTML.includes('No hay errores registrados')) {
+        erroresList.innerHTML = html;
+    } else {
+        erroresList.innerHTML = html + erroresList.innerHTML;
     }
 }
 

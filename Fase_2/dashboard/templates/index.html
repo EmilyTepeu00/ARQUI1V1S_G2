@@ -10,13 +10,13 @@
 <body>
 <div class="container">
 
-    <header class="header">
+    <header class="header" style="position:relative;">
         <h1>Invernadero Inteligente IoT</h1>
         <p>Raspberry Pi + ARM64 | Monitoreo y Control Remoto</p>
         <p class="update-info" id="ultimaActualizacion">Conectando...</p>
-        <div style="margin-top:10px;">
-            <span style="font-size:0.8rem;opacity:0.8;margin-right:12px;"> <span id="usuarioHeader">admin</span></span>
-            <a href="/logout" style="color:white;font-size:0.8rem;text-decoration:underline;opacity:0.7;">Cerrar sesión</a>
+        <div style="position:absolute;bottom:12px;right:20px;">
+            <span style="font-size:0.8rem;color:#94a3b8;margin-right:10px;"><span id="usuarioHeader">admin</span></span>
+            <a href="/logout" style="background:#dc2626;color:white;padding:6px 14px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;transition:background 0.2s;">Cerrar sesión</a>
         </div>
     </header>
 
@@ -208,6 +208,21 @@
                 <div id="analisisContenido"></div>
             </div>
             <div id="analisisError" style="margin-top:12px;display:none;background:#fee2e2;padding:12px;border-radius:6px;border:1px solid #dc2626;color:#991b1b;"></div>
+        </div>
+    </section>
+
+    <!-- SECCION DE ERRORES -->
+    <section class="section">
+        <div class="card">
+            <h3>Errores</h3>
+            <p style="font-size:0.8rem;color:#6c757d;margin-bottom:12px;">
+                Errores detectados durante la ejecucion de analisis y comandos.
+            </p>
+            <div id="erroresList" class="timeline">
+                <div class="evento" style="border-left-color:#6c757d;">
+                    <div class="evento-texto" style="color:#6c757d;">No hay errores registrados</div>
+                </div>
+            </div>
         </div>
     </section>
 

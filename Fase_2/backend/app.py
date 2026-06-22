@@ -235,6 +235,72 @@ def api_analisis_historico():
                 "error": "FILE_NOT_FOUND",
                 "detail": f"Archivo '{archivo}' no encontrado"
             }), 400
+        
+        # Validar que las lineas existan dentro del archivo
+        import csv
+        try:
+            with open(ruta_archivo, 'r') as f:
+                reader = csv.reader(f)
+                total_filas = sum(1 for row in reader) - 1
+                if linea_final > total_filas:
+                    return jsonify({
+                        "status": "ERROR",
+                        "error": "INVALID_RANGE",
+                        "detail": f"La linea final ({linea_final}) excede el total de filas del archivo ({total_filas})"
+                    }), 400
+                if linea_inicial > total_filas:
+                    return jsonify({
+                        "status": "ERROR",
+                        "error": "INVALID_RANGE",
+                        "detail": f"La linea inicial ({linea_inicial}) excede el total de filas del archivo ({total_filas})"
+                    }), 400
+        except Exception as e:
+            return jsonify({
+                "status": "ERROR",
+                "error": "FILE_READ_ERROR",
+                "detail": f"Error al leer el archivo: {str(e)}"
+            }), 400
+
+        # Validar que los valores de la columna sean numericos
+        try:
+            col_index = arm64_runner.VARIABLES.get(columna, 1)
+            with open(ruta_archivo, 'r') as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                if not header:
+                    return jsonify({
+                        "status": "ERROR",
+                        "error": "EMPTY_FILE",
+                        "detail": "El archivo CSV esta vacio o no tiene cabecera"
+                    }), 400
+                if col_index - 1 >= len(header):
+                    return jsonify({
+                        "status": "ERROR",
+                        "error": "INVALID_COLUMN",
+                        "detail": f"La columna {columna} no existe en el archivo. Columnas disponibles: {', '.join(header)}"
+                    }), 400
+                filas_leidas = 0
+                for row in reader:
+                    if filas_leidas >= linea_final:
+                        break
+                    if filas_leidas >= linea_inicial - 1:
+                        if len(row) > col_index - 1:
+                            valor = row[col_index - 1].strip()
+                            try:
+                                float(valor)
+                            except ValueError:
+                                return jsonify({
+                                    "status": "ERROR",
+                                    "error": "NON_NUMERIC_DATA",
+                                    "detail": f"El valor '{valor}' en la columna {columna} no es numerico (fila {filas_leidas + 2})"
+                                }), 400
+                    filas_leidas += 1
+        except Exception as e:
+            return jsonify({
+                "status": "ERROR",
+                "error": "VALIDATION_ERROR",
+                "detail": str(e)
+            }), 400
 
         # Ejecutar analisis historico con rango
         import threading

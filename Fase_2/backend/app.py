@@ -125,9 +125,8 @@ def api_arm64():
 @app.route("/api/csv")
 def api_csv():
     return jsonify({
-        "completo":  csv_manager.esta_completo(),
+        "generado":  csv_manager.esta_completo(),
         "filas":     csv_manager.obtener_filas(),
-        "max_filas": config.CSV_MAX_ROWS,
         "datos":     csv_manager.leer_csv()
     })
 
@@ -186,8 +185,10 @@ def api_arm64_ejecutar():
     })
 
 
-# ANALISIS HISTORIO ARM64 CON RANGO
-# archivo, linea_inicial, linea_final, columna
+# ANALISIS HISTORICO ARM64 CON RANGO
+# linea_inicial, linea_final, columna
+# El CSV se genera en este momento con las 'linea_final' lecturas
+# mas recientes de Mongo (no existe un CSV previo que validar).
 @app.route("/api/analisis/historico", methods=["POST"])
 def api_analisis_historico():
     try:
@@ -199,12 +200,11 @@ def api_analisis_historico():
                 "detail": "Se requiere body JSON"
             }), 400
 
-        archivo = datos.get("archivo", "lecturas.csv")
         linea_inicial = datos.get("linea_inicial", 1)
         linea_final = datos.get("linea_final", 30)
         columna = datos.get("columna", "TEMP").upper()
 
-        # Validaciones
+        # Validaciones de rango
         if linea_inicial < 1:
             return jsonify({
                 "status": "ERROR",
@@ -226,114 +226,37 @@ def api_analisis_historico():
                 "detail": f"Columna '{columna}' no valida. Opciones: {list(arm64_runner.VARIABLES.keys())}"
             }), 400
 
-        # Verificar que el archivo existe
-        import os
-        ruta_archivo = os.path.join(os.path.dirname(__file__), archivo)
-        if not os.path.exists(ruta_archivo):
-            return jsonify({
-                "status": "ERROR",
-                "error": "FILE_NOT_FOUND",
-                "detail": f"Archivo '{archivo}' no encontrado"
-            }), 400
-        
-        # Validar que las lineas existan dentro del archivo
-        import csv
+        # Generar el CSV con las 'linea_final' lecturas mas recientes de Mongo.
+        # Si Mongo no tiene suficientes, esto lanza DatosInsuficientesError.
         try:
-            with open(ruta_archivo, 'r') as f:
-                reader = csv.reader(f)
-                total_filas = sum(1 for row in reader) - 1
-                if linea_final > total_filas:
-                    return jsonify({
-                        "status": "ERROR",
-                        "error": "INVALID_RANGE",
-                        "detail": f"La linea final ({linea_final}) excede el total de filas del archivo ({total_filas})"
-                    }), 400
-                if linea_inicial > total_filas:
-                    return jsonify({
-                        "status": "ERROR",
-                        "error": "INVALID_RANGE",
-                        "detail": f"La linea inicial ({linea_inicial}) excede el total de filas del archivo ({total_filas})"
-                    }), 400
-        except Exception as e:
+            csv_manager.generar_csv_para_rango(linea_final)
+        except csv_manager.DatosInsuficientesError as e:
             return jsonify({
                 "status": "ERROR",
-                "error": "FILE_READ_ERROR",
-                "detail": f"Error al leer el archivo: {str(e)}"
-            }), 400
-
-        # Validar que los valores de la columna sean numericos
-        try:
-            col_index = arm64_runner.VARIABLES.get(columna, 1)
-            with open(ruta_archivo, 'r') as f:
-                reader = csv.reader(f)
-                header = next(reader, None)
-                if not header:
-                    return jsonify({
-                        "status": "ERROR",
-                        "error": "EMPTY_FILE",
-                        "detail": "El archivo CSV esta vacio o no tiene cabecera"
-                    }), 400
-                if col_index - 1 >= len(header):
-                    return jsonify({
-                        "status": "ERROR",
-                        "error": "INVALID_COLUMN",
-                        "detail": f"La columna {columna} no existe en el archivo. Columnas disponibles: {', '.join(header)}"
-                    }), 400
-                filas_leidas = 0
-                for row in reader:
-                    if filas_leidas >= linea_final:
-                        break
-                    if filas_leidas >= linea_inicial - 1:
-                        if len(row) > col_index - 1:
-                            valor = row[col_index - 1].strip()
-                            try:
-                                float(valor)
-                            except ValueError:
-                                return jsonify({
-                                    "status": "ERROR",
-                                    "error": "NON_NUMERIC_DATA",
-                                    "detail": f"El valor '{valor}' en la columna {columna} no es numerico (fila {filas_leidas + 2})"
-                                }), 400
-                    filas_leidas += 1
-        except Exception as e:
-            return jsonify({
-                "status": "ERROR",
-                "error": "VALIDATION_ERROR",
-                "detail": str(e)
+                "error": "INSUFFICIENT_DATA",
+                "detail": str(e),
+                "solicitadas": e.solicitadas,
+                "disponibles": e.disponibles
             }), 400
 
         # Ejecutar analisis historico con rango
-        import threading
         resultado = {}
 
         def ejecutar_con_rango():
             nonlocal resultado
-            # Copiar CSV y ejecutar modulos con rango
-            import arm64_runner
-            import csv_manager
-            import time
 
-            # Asegurar que el CSV este actualizado
-            csv_manager.inicializar()
-
-            # Obtener el indice de columna
             col_index = arm64_runner.VARIABLES.get(columna, 1)
 
-            # Compilar modulos si es necesario
             arm64_runner.compilar_modulos()
-
-            # Ejecutar modulos con el rango especificado
             arm64_runner.ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final)
 
-            # Leer resultados
             resultados = arm64_runner.leer_resultados(columna)
             resultado = {
                 "status": "OK",
                 "resultados": resultados,
                 "columna": columna,
                 "linea_inicial": linea_inicial,
-                "linea_final": linea_final,
-                "archivo": archivo
+                "linea_final": linea_final
             }
 
         # Ejecutar en hilo separado para no bloquear
@@ -367,10 +290,10 @@ def iniciar_servicios():
     if not db.iniciar():
         print("[WARN] Sin MongoDB — datos no se guardaran")
 
-    csv_manager.inicializar()
     mqtt.iniciar()
 
     print("[INFO] Esperando datos de la Raspberry Pi por MQTT...")
+    print("[INFO] El CSV se genera bajo demanda desde /api/analisis/historico")
     print(f"\n[BACKEND] http://localhost:{config.FLASK_PORT}\n")
 
 

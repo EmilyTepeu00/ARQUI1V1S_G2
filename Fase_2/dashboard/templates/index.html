@@ -122,13 +122,9 @@
             <div class="card">
                 <h3>Análisis Histórico ARM64</h3>
                 <p style="font-size:0.8rem;color:#6c757d;margin-bottom:12px;">
-                    Selecciona un archivo, rango de líneas y columna para analizar datos históricos.
+                    Selecciona el rango de líneas y columna a analizar. El CSV se genera con las últimas "Línea Final" lecturas disponibles en Mongo.
                 </p>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;">
-                    <div>
-                        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Archivo</label>
-                        <input type="text" id="archivoCSV" value="lecturas.csv" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
-                    </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Línea Inicial</label>
                         <input type="number" id="lineaInicio" value="1" min="1" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">

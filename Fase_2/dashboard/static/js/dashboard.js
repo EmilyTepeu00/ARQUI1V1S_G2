@@ -133,7 +133,9 @@ async function actualizarARM64() {
     try {
         const csv = await fetch('/api/csv').then(r => r.json());
         document.getElementById('csvStatus').textContent =
-            `CSV: ${csv.filas}/30 lecturas ${csv.completo ? 'COMPLETO' : 'pendiente'}`;
+            csv.generado
+                ? `CSV: ${csv.filas} lectura(s) generadas`
+                : 'CSV: sin generar (solicita un analisis)';
 
         const datos = await fetch('/api/arm64').then(r => r.json());
         if (!datos || datos.length === 0) return;
@@ -184,7 +186,6 @@ async function cmd(accion, valor) {
 
 // ANALISIS HISTORICO
 async function ejecutarAnalisisHistorico() {
-    const archivo = document.getElementById('archivoCSV').value.trim();
     const inicio = parseInt(document.getElementById('lineaInicio').value);
     const fin = parseInt(document.getElementById('lineaFin').value);
     const columna = document.getElementById('columnaSelect').value;
@@ -198,20 +199,6 @@ async function ejecutarAnalisisHistorico() {
     errorDiv.style.display = 'none';
 
     // Validar
-    if (!archivo) {
-        errorDiv.textContent = 'Error: Debes especificar un archivo';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
-    // Validar extension del archivo
-    var extension = archivo.split('.').pop().toLowerCase();
-    if (extension !== 'csv' && extension !== 'txt') {
-        errorDiv.textContent = 'Error: El archivo debe ser .csv o .txt';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
     if (inicio < 1) {
         errorDiv.textContent = 'Error: La linea inicial debe ser mayor o igual a 1';
         errorDiv.style.display = 'block';
@@ -228,7 +215,6 @@ async function ejecutarAnalisisHistorico() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                archivo: archivo,
                 linea_inicial: inicio,
                 linea_final: fin,
                 columna: columna
@@ -247,7 +233,6 @@ async function ejecutarAnalisisHistorico() {
 
         // Mostrar resultados
         let html = '<div style="font-size:0.85rem;">';
-        html += '<p><strong>Archivo:</strong> ' + data.archivo + '</p>';
         html += '<p><strong>Rango:</strong> ' + data.linea_inicial + ' - ' + data.linea_final + '</p>';
         html += '<p><strong>Columna:</strong> ' + data.columna + '</p>';
         html += '<hr style="margin:8px 0;">';

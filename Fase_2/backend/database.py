@@ -88,6 +88,15 @@ def obtener_historial_sensores(limite=30):
         return []
 
 
+def contar_lecturas_sensores():
+    if _db is None:
+        return None
+    try:
+        return _db[COL_SENSOR_READINGS].count_documents({})
+    except Exception:
+        return None
+
+
 def obtener_resultados_arm64(variable=None):
     if _db is None:
         return []

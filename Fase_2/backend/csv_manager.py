@@ -8,24 +8,43 @@ _lock      = threading.Lock()
 _num_filas = 0
 
 
-def inicializar():
+class DatosInsuficientesError(Exception):
+    """Se lanza cuando Mongo no tiene suficientes lecturas para cubrir
+    la cantidad de filas solicitada (linea_final)."""
+    def __init__(self, solicitadas, disponibles):
+        self.solicitadas  = solicitadas
+        self.disponibles  = disponibles
+        super().__init__(
+            f"Se solicitaron {solicitadas} fila(s) pero Mongo solo tiene "
+            f"{disponibles} lectura(s) disponible(s)"
+        )
+
+
+def generar_csv_para_rango(linea_final):
+    """
+    El CSV resultante queda en disco tal cual hasta la siguiente
+    solicitud (no hay regeneracion automatica por MQTT).
+    """
     global _num_filas
+
     with _lock:
-        _num_filas = _reescribir_desde_mongo()
-    print(f"[CSV] Inicializado desde Mongo — {_num_filas} fila(s)")
+        total_disponible = db.contar_lecturas_sensores()
+        if total_disponible is None:
+            total_disponible = 0
+
+        if total_disponible < linea_final:
+            raise DatosInsuficientesError(linea_final, total_disponible)
+
+        historial = db.obtener_historial_sensores(limite=linea_final)
+        filas_escritas = _escribir_csv(historial)
+        _copiar_a_arm64()
+        _num_filas = filas_escritas
+
+    print(f"[CSV] Generado para solicitud — {filas_escritas} fila(s) (linea_final={linea_final})")
+    return filas_escritas
 
 
-def agregar_fila(temp, hum_aire, hum_suelo1, hum_suelo2, luz, gas, riego1, riego2):
-    global _num_filas
-    with _lock:
-        _num_filas = _reescribir_desde_mongo()
-    print(f"[CSV] Regenerado — {_num_filas}/{config.CSV_MAX_ROWS} (FIFO desde Mongo)")
-    return True
-
-
-def _reescribir_desde_mongo():
-    historial = db.obtener_historial_sensores(limite=config.CSV_MAX_ROWS)
-
+def _escribir_csv(historial):
     with open(config.CSV_FILE, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(config.CSV_HEADERS)
@@ -63,8 +82,19 @@ def _reescribir_desde_mongo():
     return filas_escritas
 
 
+def _copiar_a_arm64():
+    try:
+        with open(config.CSV_FILE, "r", newline="") as src:
+            contenido = src.read()
+        os.makedirs(os.path.dirname(config.CSV_FILE_ARM64), exist_ok=True)
+        with open(config.CSV_FILE_ARM64, "w", newline="") as dst:
+            dst.write(contenido)
+    except Exception as e:
+        print(f"[CSV] No se pudo copiar a ARM64/: {e}")
+
+
 def esta_completo():
-    return _num_filas >= config.CSV_MAX_ROWS
+    return _num_filas > 0
 
 
 def obtener_filas():
@@ -80,7 +110,7 @@ def leer_csv():
             reader = csv.DictReader(f)
             for row in reader:
                 if None in row or None in row.values():
-                    continue  
+                    continue
                 if "TEMP" in row:
                     try:
                         row["TEMP"] = round(int(row["TEMP"]) / 10, 1)

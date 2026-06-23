@@ -113,14 +113,18 @@ def compilar_modulos():
 def ejecutar_modulos(col_index):
     print(f"[ARM64] Ejecutando modulos con columna index={col_index}...")
     col_str = str(col_index)
+    archivo_str = "lecturas.csv"
+    inicio_str = "1"
+    fin_str = str(config.CSV_MAX_ROWS)
     for m in MODULOS:
         bin_ = os.path.join(ARM64_DIR, m["binario"])
         if not os.path.exists(bin_):
             print(f"[ARM64] Binario {m['binario']} no existe — saltando")
             continue
         try:
+            # Ejecutar con: binario archivo inicio fin columna (orden del enunciado 4.14)
             r = subprocess.run(
-                [bin_, col_str],
+                [bin_, archivo_str, inicio_str, fin_str, col_str],
                 capture_output=True, text=True, cwd=ARM64_DIR, timeout=15
             )
             if r.returncode == 0:
@@ -128,7 +132,7 @@ def ejecutar_modulos(col_index):
                 if r.stdout:
                     print(r.stdout)
             else:
-                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): {r.stderr}")
+                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): stderr={r.stderr!r} stdout={r.stdout!r}")
         except FileNotFoundError:
             print(f"[ARM64] Binario no encontrado: {bin_}")
             break
@@ -143,6 +147,7 @@ def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
     col_str = str(col_index)
     inicio_str = str(linea_inicial)
     fin_str = str(linea_final)
+    archivo_str = "lecturas.csv"
 
     for m in MODULOS:
         bin_ = os.path.join(ARM64_DIR, m["binario"])
@@ -150,9 +155,9 @@ def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
             print(f"[ARM64] Binario {m['binario']} no existe — saltando")
             continue
         try:
-            # Ejecutar con: binario columna inicio fin
+            # Ejecutar con: binario archivo inicio fin columna (orden del enunciado 4.14)
             r = subprocess.run(
-                [bin_, col_str, inicio_str, fin_str],
+                [bin_, archivo_str, inicio_str, fin_str, col_str],
                 capture_output=True, text=True, cwd=ARM64_DIR, timeout=15
             )
             if r.returncode == 0:
@@ -160,7 +165,7 @@ def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
                 if r.stdout:
                     print(r.stdout)
             else:
-                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): {r.stderr}")
+                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): stderr={r.stderr!r} stdout={r.stdout!r}")
         except FileNotFoundError:
             print(f"[ARM64] Binario no encontrado: {bin_}")
             break
@@ -249,4 +254,3 @@ def correr_pipeline(variable="TEMP"):
         guardar_en_mongo(resultados)
     else:
         print("[ARM64] Sin resultados de archivos .txt")
-

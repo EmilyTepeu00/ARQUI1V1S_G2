@@ -40,7 +40,7 @@ const MENSAJES_ESTADO = {
     'ADVERTENCIA':  'Advertencia: condiciones fuera del rango óptimo',
     'RIEGO_ACTIVO': 'Riego activo',
     'MODO_MANUAL':  'Control manual activado',
-    'EMERGENCIA':   '🚨 Alerta crítica detectada'
+    'EMERGENCIA':   'Alerta crítica detectada'
 };
 
 function actualizarBarraProgreso(id, valor) {
@@ -138,11 +138,6 @@ async function actualizarARM64() {
         const datos = await fetch('/api/arm64').then(r => r.json());
         if (!datos || datos.length === 0) return;
 
-        // Mostrar la variable que se analizo (viene en el primer resultado)
-        const varAnalizada = datos[0] && datos[0].variable ? datos[0].variable : '';
-        const labelVar = document.getElementById('arm64VariableLabel');
-        if (labelVar && varAnalizada) labelVar.textContent = `Variable analizada: ${varAnalizada}`;
-
         datos.forEach(d => {
             const tipo = d.tipo || d.MODULE;
             if (tipo === 'WEIGHTED_MEAN') {
@@ -150,7 +145,7 @@ async function actualizarARM64() {
                 document.getElementById('arm64_media_det').textContent = `Sum(X*W)/Sum(W) | SumX=${d.SUM_X || '--'} | SumW=${d.WEIGHT_SUM || '--'}`;
             } else if (tipo === 'VARIANCE') {
                 document.getElementById('arm64_var').textContent     = `Varianza: ${d.VARIANCE || '--'} | StdDev: ${d.STD_DEV || '--'}`;
-                document.getElementById('arm64_var_det').textContent = `Media: ${d.MEAN || '--'} | N=30`;
+                document.getElementById('arm64_var_det').textContent = `Media: ${d.MEAN || '--'}`;
             } else if (tipo === 'ANOMALY_DETECTION') {
                 document.getElementById('arm64_anom').textContent = `${d.ANOMALIES || '--'} anomalias detectadas`;
                 const riesgo = d.SYSTEM_RISK || '--';
@@ -187,33 +182,6 @@ async function cmd(accion, valor) {
     }
 }
 
-async function ejecutarARM64() {
-    try {
-        const select   = document.getElementById('arm64Variable');
-        const variable = select ? select.value : 'TEMP';
-        const res = await fetch('/api/arm64/ejecutar', {
-            method:  'POST',
-            headers: {'Content-Type': 'application/json'},
-            body:    JSON.stringify({ variable })
-        });
-        const data = await res.json();
-        const fb = document.getElementById('feedback');
-        fb.textContent = `Modulos ARM64 iniciados para variable: ${data.variable}`;
-        fb.style.display = 'block';
-        setTimeout(() => { fb.style.display = 'none'; actualizarARM64(); }, 3000);
-    } catch (e) { console.error('Error ejecutarARM64:', e); }
-}
-
-let graficasActualizadas = 0;
-
-async function cicloCompleto() {
-    await actualizarEstado();
-    graficasActualizadas++;
-    if (graficasActualizadas % 2 === 0) await actualizarGraficas();
-    if (graficasActualizadas % 4 === 0) await actualizarHistorial();
-    if (graficasActualizadas % 6 === 0) await actualizarARM64();
-}
-
 // ANALISIS HISTORICO
 async function ejecutarAnalisisHistorico() {
     const archivo = document.getElementById('archivoCSV').value.trim();
@@ -231,10 +199,19 @@ async function ejecutarAnalisisHistorico() {
 
     // Validar
     if (!archivo) {
-        errorDiv.textContent = 'Error: Debe especificar un archivo CSV';
+        errorDiv.textContent = 'Error: Debes especificar un archivo';
         errorDiv.style.display = 'block';
         return;
     }
+
+    // Validar extension del archivo
+    var extension = archivo.split('.').pop().toLowerCase();
+    if (extension !== 'csv' && extension !== 'txt') {
+        errorDiv.textContent = 'Error: El archivo debe ser .csv o .txt';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
     if (inicio < 1) {
         errorDiv.textContent = 'Error: La linea inicial debe ser mayor o igual a 1';
         errorDiv.style.display = 'block';
@@ -261,6 +238,8 @@ async function ejecutarAnalisisHistorico() {
         const data = await res.json();
 
         if (data.status === 'ERROR') {
+            // Mostrar error estructurado
+            mostrarError(data.error, data.detail);
             errorDiv.textContent = 'Error ' + data.error + ': ' + data.detail;
             errorDiv.style.display = 'block';
             return;
@@ -297,6 +276,57 @@ async function ejecutarAnalisisHistorico() {
         errorDiv.textContent = 'Error de conexion: ' + e.message;
         errorDiv.style.display = 'block';
     }
+}
+
+// MOSTRAR ERRORES ESTRUCTURADOS
+function mostrarError(tipo, detalle) {
+    const erroresList = document.getElementById('erroresList');
+    const timestamp = new Date().toLocaleTimeString();
+    
+    let color = '';
+    
+    if (tipo === 'INVALID_RANGE') {
+        color = '#eab308';
+    } else if (tipo === 'FILE_NOT_FOUND') {
+        color = '#dc2626';
+    } else if (tipo === 'INVALID_COLUMN') {
+        color = '#eab308';
+    } else if (tipo === 'NON_NUMERIC_DATA') {
+        color = '#dc2626';
+    } else if (tipo === 'EMPTY_FILE') {
+        color = '#dc2626';
+    } else if (tipo === 'FILE_READ_ERROR') {
+        color = '#dc2626';
+    } else {
+        color = '#dc2626';
+    }
+    
+    const html = `
+        <div class="evento" style="border-left-color: ${color};">
+            <div class="evento-fecha">${timestamp}</div>
+            <div class="evento-texto">
+                <strong>${tipo}</strong>
+                <span style="color:#6c757d;font-size:0.8rem;display:block;margin-top:4px;">${detalle}</span>
+            </div>
+        </div>
+    `;
+    
+    // Insertar al inicio (mas reciente arriba)
+    if (erroresList.innerHTML.includes('No hay errores registrados')) {
+        erroresList.innerHTML = html;
+    } else {
+        erroresList.innerHTML = html + erroresList.innerHTML;
+    }
+}
+
+let graficasActualizadas = 0;
+
+async function cicloCompleto() {
+    await actualizarEstado();
+    graficasActualizadas++;
+    if (graficasActualizadas % 2 === 0) await actualizarGraficas();
+    if (graficasActualizadas % 4 === 0) await actualizarHistorial();
+    if (graficasActualizadas % 6 === 0) await actualizarARM64();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

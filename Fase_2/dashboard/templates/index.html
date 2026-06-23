@@ -120,94 +120,45 @@
             </div>
 
             <div class="card">
-                <h3>Análisis ARM64</h3>
-                <div id="arm64Results">
-                    <div class="arm64-item">
-                        <div class="arm64-title">Media Aritmética Ponderada</div>
-                        <div class="arm64-value" id="arm64_media">Sin datos aún</div>
-                        <div class="arm64-detail" id="arm64_media_det">Esperando CSV completo (30 lecturas)</div>
+                <h3>Análisis Histórico ARM64</h3>
+                <p style="font-size:0.8rem;color:#6c757d;margin-bottom:12px;">
+                    Selecciona un archivo, rango de líneas y columna para analizar datos históricos.
+                </p>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;">
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Archivo</label>
+                        <input type="text" id="archivoCSV" value="lecturas.csv" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
                     </div>
-                    <div class="arm64-item">
-                        <div class="arm64-title">Varianza y Desviación Estándar</div>
-                        <div class="arm64-value" id="arm64_var">Sin datos aún</div>
-                        <div class="arm64-detail" id="arm64_var_det">--</div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Línea Inicial</label>
+                        <input type="number" id="lineaInicio" value="1" min="1" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
                     </div>
-                    <div class="arm64-item">
-                        <div class="arm64-title">Detección de Anomalías</div>
-                        <div class="arm64-value" id="arm64_anom">Sin datos aún</div>
-                        <div class="arm64-risk" id="arm64_riesgo">--</div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Línea Final</label>
+                        <input type="number" id="lineaFin" value="30" min="1" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
                     </div>
-                    <div class="arm64-item">
-                        <div class="arm64-title">Predicción Lineal Simple</div>
-                        <div class="arm64-value" id="arm64_pred">Sin datos aún</div>
-                        <div class="arm64-detail" id="arm64_pred_det">--</div>
-                    </div>
-                    <div class="arm64-item">
-                        <div class="arm64-title">Tendencia Acumulada Avanzada</div>
-                        <div class="arm64-value" id="arm64_tend">Sin datos aún</div>
-                        <div class="arm64-detail" id="arm64_tend_det">--</div>
-                    </div>
-                </div>
-
-                <div style="margin-top:10px">
-                    <div class="csv-status" id="csvStatus">CSV: 0/30 lecturas</div>
-                    <div style="margin-top:10px;">
-                        <label for="arm64Variable" style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:4px;">Variable a analizar:</label>
-                        <select id="arm64Variable" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;margin-bottom:8px;">
-                            <option value="TEMP">Temperatura (TEMP)</option>
-                            <option value="HUM_AIRE">Humedad Ambiente (HUM_AIRE)</option>
-                            <option value="HUM_SUELO_1">Humedad Suelo Área 1 (HUM_SUELO_1)</option>
-                            <option value="HUM_SUELO_2">Humedad Suelo Área 2 (HUM_SUELO_2)</option>
-                            <option value="LUZ">Nivel de Luz (LUZ)</option>
-                            <option value="GAS">Nivel de Gas (GAS)</option>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Columna</label>
+                        <select id="columnaSelect" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
+                            <option value="TEMP">Temperatura</option>
+                            <option value="HUM_AIRE">Humedad Ambiente</option>
+                            <option value="HUM_SUELO_1">Humedad Suelo 1</option>
+                            <option value="HUM_SUELO_2">Humedad Suelo 2</option>
+                            <option value="LUZ">Luz</option>
+                            <option value="GAS">Gas</option>
                         </select>
                     </div>
-                    <div id="arm64VariableLabel" style="font-size:0.8rem;color:#555;margin-bottom:6px;min-height:16px;"></div>
-                    <button class="btn" onclick="ejecutarARM64()" style="margin-top:4px;width:100%">Ejecutar Módulos ARM64</button>
                 </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- ANÁLISIS HISTÓRICO -->
-    <section class="section">
-        <div class="card">
-            <h3>Análisis Histórico ARM64</h3>
-            <p style="font-size:0.8rem;color:#6c757d;margin-bottom:12px;">
-                Selecciona un archivo CSV, rango de líneas y columna para analizar datos históricos.
-            </p>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;">
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Archivo CSV</label>
-                    <input type="text" id="archivoCSV" value="lecturas.csv" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
+                <button class="btn" onclick="ejecutarAnalisisHistorico()" style="margin-top:12px;width:100%;background:#2563eb;color:white;border:none;padding:10px;border-radius:6px;font-weight:600;cursor:pointer;">
+                    Ejecutar Análisis Histórico
+                </button>
+
+                <div id="analisisResultado" style="margin-top:12px;display:none;background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;">
+                    <div id="analisisContenido"></div>
                 </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Línea Inicial</label>
-                    <input type="number" id="lineaInicio" value="1" min="1" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Línea Final</label>
-                    <input type="number" id="lineaFin" value="30" min="1" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
-                </div>
-                <div>
-                    <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Columna</label>
-                    <select id="columnaSelect" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
-                        <option value="TEMP">Temperatura</option>
-                        <option value="HUM_AIRE">Humedad Ambiente</option>
-                        <option value="HUM_SUELO_1">Humedad Suelo 1</option>
-                        <option value="HUM_SUELO_2">Humedad Suelo 2</option>
-                        <option value="LUZ">Luz</option>
-                        <option value="GAS">Gas</option>
-                    </select>
-                </div>
+                <div id="analisisError" style="margin-top:12px;display:none;background:#fee2e2;padding:12px;border-radius:6px;border:1px solid #dc2626;color:#991b1b;"></div>
             </div>
-            <button class="btn" onclick="ejecutarAnalisisHistorico()" style="margin-top:12px;width:100%;background:#2563eb;color:white;border:none;padding:10px;border-radius:6px;font-weight:600;cursor:pointer;">
-                Ejecutar Análisis Histórico
-            </button>
-            <div id="analisisResultado" style="margin-top:12px;display:none;background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;">
-                <div id="analisisContenido"></div>
-            </div>
-            <div id="analisisError" style="margin-top:12px;display:none;background:#fee2e2;padding:12px;border-radius:6px;border:1px solid #dc2626;color:#991b1b;"></div>
         </div>
     </section>
 

@@ -71,3 +71,167 @@ res_max_slope: .skip 8
 
 .section .text
 .global _start
+
+// ----- PROGRAMA PRINCIPAL -----
+_start:
+    // LECTURA DE ARGUMENTOS
+    // [sp] = argc
+    ldr x0, [sp]
+    cmp x0, #5
+    blt usar_default
+
+    ldr x17, [sp, #16]      // archivo
+
+    ldr x0, [sp, #24]       // argv[2] = linea inicial
+    bl ascii_a_int
+    mov x12, x0
+
+    ldr x0, [sp, #32]       // argv[3] = linea final
+    bl ascii_a_int
+    mov x13, x0
+
+    ldr x0, [sp, #40]       // argv[4] = columna
+    bl ascii_a_int
+    mov x11, x0
+
+    // GUARDAR COPIAS PARA LA SALIDA
+    adr x0, arg_columna
+    str x11, [x0]
+
+    adr x0, arg_window_start
+    str x12, [x0]
+
+    adr x0, arg_window_end
+    str x13, [x0]
+
+    b llamar_leer_5
+
+usar_default:
+    mov x11, #7
+    mov x12, #1
+    mov x13, #30
+    adr x17, archivo_default
+
+    adr x0, arg_columna
+    str x11, [x0]
+
+    adr x0, arg_window_start
+    str x12, [x0]
+
+    adr x0, arg_window_end
+    str x13, [x0]
+
+llamar_leer_5:
+    bl read_column_to_stack
+
+    mov x24, x0
+    mov x25, x1
+    mov x26, x3
+    mov x27, x2     // COUNT = cantidad de datos
+
+    // VERIFICAR QUE HAYA AL MENOS 5 DATOS
+    cmp x27, #5
+    bge copiar_datos
+
+    // Si hay menos, mostrar error y salir
+    bl escribir_error_insuficiente
+    mov x8, SYS_EXIT
+    mov x0, #1
+    svc 0
+
+copiar_datos:
+    // COPIAR DATOS AL BUFFER
+    mov x6, x24
+    adr x4, datos_copia
+    mov x5, x27
+
+copia_loop:
+    cbz x5, copia_fin
+    ldr x9, [x6], #16
+    str x9, [x4], #8
+    sub x5, x5, #1
+    b copia_loop
+
+copia_fin:
+
+    // CALCULAR PENDIENTES LOCALES
+    // Cada ventana usa 5 puntos consecutivos
+    // Total de ventanas = N - 5 + 1 = N - 4
+    adr x6, datos_copia
+    mov x20, #0         // contador de ventanas procesadas
+    mov x21, #0         // total de ventanas = x27 - 4
+    sub x21, x27, #4
+    mov x22, #0         // maximo slope encontrado (inicializar en 0)
+    mov x23, #0         // contador de puntos dentro de la ventana
+
+calcular_ventanas:
+    cmp x20, x21
+    bge fin_calculo
+
+    // Reiniciar acumuladores para esta ventana
+    mov x24, #0         // suma(Y)
+    mov x25, #0         // suma(X*Y)  (X = 0,1,2,3,4)
+    mov x23, #0         // contador de puntos en ventana
+
+    // Guardar puntero al inicio de la ventana
+    mov x19, x6
+
+calcular_puntos_ventana:
+    cmp x23, #5
+    bge ventana_lista
+
+    ldr x9, [x19]       // cargar Y actual
+
+    // sumar Y
+    add x24, x24, x9
+
+    // sumar X*Y (X = 0,1,2,3,4)
+    // Con el contador x23 como X
+    mul x10, x23, x9
+    add x25, x25, x10
+
+    add x23, x23, #1
+    add x19, x19, #8
+    b calcular_puntos_ventana
+
+ventana_lista:
+    // Calcular slope para esta ventana
+    // LOCAL_SLOPE_X100 = ((5 * suma(X*Y) - 10 * suma(Y)) * 100) / 50
+    //                  = ((5*sumaXY - 10*sumaY) * 100) / 50
+    //                  = (5*sumaXY - 10*sumaY) * 2
+
+    // 5 * sumaXY
+    mov x10, #5
+    mul x11, x25, x10
+
+    // 10 * sumaY
+    mov x10, #10
+    mul x12, x24, x10
+
+    // 5*sumaXY - 10*sumaY
+    sub x13, x11, x12
+
+    // Multiplicar por 100
+    mov x10, #100
+    mul x14, x13, x10
+
+    // Dividir entre 50
+    udiv x15, x14, #50
+
+    // Comparar con maximo actual
+    cmp x15, x22
+    ble ventana_siguiente
+
+    // Nuevo maximo
+    mov x22, x15
+
+ventana_siguiente:
+    // Avanzar al siguiente dato (ventana se desplaza 1 posicion)
+    add x6, x6, #8
+    add x20, x20, #1
+    b calcular_ventanas
+
+fin_calculo:
+    // Guardar el maximo slope
+    adr x9, res_max_slope
+    str x22, [x9]

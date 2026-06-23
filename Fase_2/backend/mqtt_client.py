@@ -144,19 +144,6 @@ def _guardar_lectura_completa(l):
             "origen":    "raspberry_pi",
         })
 
-    import csv_manager
-    # Determinar riego por area segun el estado del suelo real
-    # Si el suelo esta seco y el riego esta activo, marcamos el area correspondiente
-    riego_activo = estado["riego"] not in ("RIEGO_OFF", "BLOQUEADO_POR_SATURACION")
-    suelo1_seco  = (l["hum_suelo1"] == "SECO")
-    suelo2_seco  = (l["hum_suelo2"] == "SECO")
-    riego1 = 1 if (riego_activo and suelo1_seco) else 0
-    riego2 = 1 if (riego_activo and suelo2_seco) else 0
-    csv_manager.agregar_fila(
-        l["temperatura"], l["hum_aire"], l.get("hum_suelo1_val", 0),
-        l.get("hum_suelo2_val", 0), 1 if l["luz"] == "NORMAL" else 0,
-        l["gas"], riego1, riego2 
-   )
 
 def publicar_comando_remoto(accion, valor):
     _publicar(config.TOPIC_CONTROL_REMOTO, {

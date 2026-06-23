@@ -39,8 +39,11 @@ TOPIC_ESTADO_GLOBAL  = f"{MQTT_PREFIX}/estado/global"
 TOPIC_CONTROL_REMOTO = f"{MQTT_PREFIX}/control/remoto"
 TOPIC_CONTROL_MANUAL = f"{MQTT_PREFIX}/control/manual"
 
-# CSV 
-CSV_FILE     = "lecturas.csv"
+# CSV
+import os
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE     = os.path.join(BASE_DIR, "lecturas.csv")
+CSV_FILE_ARM64 = os.path.join(BASE_DIR, "..", "ARM64", "lecturas.csv")
 CSV_MAX_ROWS = 30
 CSV_HEADERS  = [
     "ID","TEMP","HUM_AIRE","HUM_SUELO_1",

@@ -1,3 +1,4 @@
+
 // utils.s
 //
 // Entrada:
@@ -13,33 +14,30 @@
 
 .data
 
-filename:
-    .asciz "lecturas.csv"
-
 err_open:
-    .ascii "Error al abrir el archivo\n"
+    .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=FILE_NOT_FOUND\nDETAIL=CANNOT_OPEN_FILE\n"
     len_err_open = . - err_open
 
 err_read:
-    .ascii "Error al leer el archivo\n"
+    .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=READ_ERROR\nDETAIL=CANNOT_READ_FILE\n"
     len_err_read = . - err_read
 
 err_col:
-    .ascii "Columna invalida\n"
+    .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=INVALID_COLUMN\nDETAIL=COLUMN_DOES_NOT_EXIST\n"
     len_err_col = . - err_col
 
 err_rango:
-    .ascii "Rango invalido\n"
+    .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=INVALID_RANGE\nDETAIL=RANGE_OUT_OF_BOUNDS\n"
     len_err_rango = . - err_rango
 
 err_no_numerico:
-    .ascii "Valor no numerico en la columna\n"
+    .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=NON_NUMERIC_VALUE\nDETAIL=VALUE_NOT_NUMERIC\n"
     len_err_no_numerico = . - err_no_numerico
 
 .bss
 
 buffer:
-    .skip 4096
+    .skip 65536         // para permitir archivos con miles de filas
 
 .text
 
@@ -182,16 +180,28 @@ utils_open_file:
     ret
 
 utils_read_file:
+    mov x20, #0 
+
+utils_read_file_loop:
     mov x0, x19
     ldr x1, =buffer
-    mov x2, #4096
+    add x1, x1, x20
+    mov x2, #65536
+    sub x2, x2, x20
+    cmp x2, #0
+    ble utils_read_file_done
+
     mov x8, #63
     svc #0
 
     cmp x0, #0
     blt utils_read_error
+    beq utils_read_file_done        // 0 bytes = ya no hay mas archivos
 
-    mov x20, x0
+    add x20, x20, x0          // sumar lo leido en esta vuelta
+    b utils_read_file_loop
+
+utils_read_file_done:
     // marcar fin del contenido leído
     ldr x1, =buffer
     add x1, x1, x20

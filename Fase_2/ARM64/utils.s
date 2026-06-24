@@ -175,7 +175,7 @@ utils_done:
 
 utils_open_file:
     mov x0, #-100
-    ldr x1, x17         // el nombre llego como parametro
+    mov x1, x17         // el nombre llego como parametro
     mov x2, #0
     mov x3, #0
     mov x8, #56

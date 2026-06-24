@@ -32,6 +32,10 @@ err_rango:
     .ascii "Rango invalido\n"
     len_err_rango = . - err_rango
 
+err_no_numerico:
+    .ascii "Valor no numerico en la columna\n"
+    len_err_no_numerico = . - err_no_numerico
+
 .bss
 
 buffer:
@@ -125,13 +129,15 @@ utils_find_column:
 utils_read_column:
     bl atoi_csv
 
-    cbz x7, utils_after_column
-
     cmp x14, x12
     blt utils_after_column
 
     cmp x14, x13
     bgt utils_after_column
+
+    cmp x8, #1                  // si esta dentro del rango, validar que sea numerico
+    beq utils_error_no_numerico
+    cbz x7, utils_after_column
 
     bl utils_save_number
 
@@ -263,6 +269,14 @@ utils_error_rango:
     svc #0
     b utils_exit_error
 
+utils_error_no_numerico:
+    mov x0, #1
+    ldr x1, =err_no_numerico
+    mov x2, len_err_no_numerico
+    mov x8, #64
+    svc #0
+    b utils_exit_error
+
 utils_exit_error:
     mov x0, #1
     mov x8, #93
@@ -274,6 +288,7 @@ utils_exit_error:
 atoi_csv:
     mov x10, #0
     mov x7, #0
+    mov x8, #0
 
 atoi_csv_loop:
     ldrb w23, [x21], #1
@@ -281,6 +296,8 @@ atoi_csv_loop:
     cmp w23, ','
     beq atoi_csv_done
     cmp w23, #10
+    beq atoi_csv_done
+    cmp w23, #13
     beq atoi_csv_done
     cmp w23, '$'
     beq atoi_csv_done
@@ -296,6 +313,10 @@ atoi_csv_loop:
     mul x10, x10, x5
     add x10, x10, x23
     mov x7, #1
+    b atoi_csv_loop
+
+atoi_csv_invalido:
+    mov x8, #1
     b atoi_csv_loop
 
 atoi_csv_done:

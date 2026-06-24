@@ -112,7 +112,7 @@ _start:
     mov x11, x9                 //Mueve la columna al registro que espera read_column_to_stack
     mov x12, x6                 //Mueve la linea inicial al registro que espera read_column_to_stack
     mov x13, x7                 //Mueve la linea final al registro que espera read_column_to_stack
-    ldr x17, [sp, #16]          //Pasa el nombre de archivo en x17, lo necesita utils.s
+    ldr x9, [sp, #16]           //Pasa el nombre de archivo en x9, lo necesita utils.s
     bl read_column_to_stack     //Esta funcion abre el csv, lo lee y guarda los datos del rango
 
     mov x24, x0                 //Se guarda el inicio de los datos en pila

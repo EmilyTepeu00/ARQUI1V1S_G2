@@ -92,7 +92,7 @@ g_wend:
 
 _start:
 
-    ldr x0, [sp]            //argv[0] = nombre del programa, lo necesita utils.s
+    ldr x0, [sp]            //x0 = argc
     cmp x0, #5              //se esperan archivo+inicio+fin+columna (4 reales)
     blt no_argumento
 
@@ -124,7 +124,7 @@ _start:
     mov x11, x9             //Columna pedida por el usuario
     mov x12, x6             //Linea inicial pedida por el usuario
     mov x13, x7             //Linea final pedida por el usuario
-    ldr x17, [sp, #16]      //argv[1] = nombre del archivo csv
+    ldr x9, [sp, #16]       //argv[1] = nombre del archivo, lo necesita utils.s en x9
     bl read_column_to_stack //Esta funcion abre el csv, lo lee y guarda solo el rango pedido
  
     mov x24, x0             //Se guardan 4 datos importantes (Ultimo dato guardado, donde se guardo el ultimo dato, datos totales leidos, dato extra para ordenar de nuevo la pila)

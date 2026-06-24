@@ -1,6 +1,7 @@
 // utils.s
 //
 // Entrada:
+//   x9  = puntero al nombre del archivo 
 //   x11 = columna seleccionada
 //   x12 = linea inicial
 //   x13 = linea final 
@@ -12,9 +13,6 @@
 //   x3 = posicion para restaurar stack
 
 .data
-
-filename:
-    .asciz "lecturas.csv"
 
 err_open:
     .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=FILE_NOT_FOUND\nDETAIL=CANNOT_OPEN_FILE\n"
@@ -54,6 +52,7 @@ buffer:
 read_column_to_stack:
     mov x26, x30
     mov x28, sp
+    mov x17, x9              // guardamos el nombre del archivo en x17
 
     mov x5, #10              // base 10
     mov x22, #0              // contador de numeros
@@ -176,7 +175,7 @@ utils_done:
 
 utils_open_file:
     mov x0, #-100
-    ldr x1, =filename
+    ldr x1, x17         // el nombre llego como parametro
     mov x2, #0
     mov x3, #0
     mov x8, #56

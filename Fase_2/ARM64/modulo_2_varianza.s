@@ -39,7 +39,7 @@ buf_num3:      .skip 32
 
 _start:
     // leer los 4 argumento de columna
-    ldr x17, [sp, #16]              // x17 = nombre del archivo
+    ldr x9, [sp, #16]              // x9 = puntero al nombre del archivo argv[1]
 
     ldr x0, [sp, #24]               // argv[2] = linea inicial
     bl ascii_a_int
@@ -58,6 +58,7 @@ _start:
     str x11, [sp]        // columna
     str x12, [sp, #8]    // linea inicial
     str x13, [sp, #16]   // linea final
+    str x9,  [sp, #24]   // puntero al nombre del archivo
     bl read_column_to_stack
 
     //recuperamos las copias despues de la llamada

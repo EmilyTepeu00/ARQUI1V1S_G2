@@ -13,6 +13,9 @@
 
 .data
 
+filename:
+    .asciz "lecturas.csv"
+
 err_open:
     .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=FILE_NOT_FOUND\nDETAIL=CANNOT_OPEN_FILE\n"
     len_err_open = . - err_open
@@ -32,6 +35,10 @@ err_rango:
 err_no_numerico:
     .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=NON_NUMERIC_VALUE\nDETAIL=VALUE_NOT_NUMERIC\n"
     len_err_no_numerico = . - err_no_numerico
+
+err_sin_datos:
+    .ascii "MODULE=HISTORICAL_ANALYZER\nSTATUS=ERROR\nERROR=INSUFFICIENT_DATA\nDETAIL=NO_VALID_VALUES_IN_RANGE\n"
+    len_err_sin_datos = . - err_sin_datos
 
 .bss
 
@@ -154,6 +161,9 @@ utils_after_column:
 utils_done:
     cmp x14, x13
     blt utils_error_rango
+
+    cmp x22, #1
+    blt utils_error_sin_datos
 
     mov x0, sp        // inicio de datos (ascendente)
     mov x1, x28       // limite final 
@@ -286,6 +296,14 @@ utils_error_no_numerico:
     svc #0
     b utils_exit_error
 
+utils_error_sin_datos:
+    mov x0, #1
+    ldr x1, =err_sin_datos
+    mov x2, len_err_sin_datos
+    mov x8, #64
+    svc #0
+    b utils_exit_error
+
 utils_exit_error:
     mov x0, #1
     mov x8, #93
@@ -294,10 +312,44 @@ utils_exit_error:
 // Convierte el numero del CSV a entero
 // x10 = resultado
 // x7 = indica si encontro digitos
+// x8 = indicar si encontro un caracter invalido (no digito, no separador)
+// x6 = signo, 1 = positivo, -1 = negativo
 atoi_csv:
     mov x10, #0
     mov x7, #0
     mov x8, #0
+    mov x6, #1            // signo por defecto: positivo
+
+    // el primer caracter puede ser '-' 
+    ldrb w23, [x21], #1
+
+    cmp w23, '-'
+    bne atoi_csv_check_first
+
+    mov x6, #-1
+    b atoi_csv_loop
+
+atoi_csv_check_first:
+    cmp w23, ','
+    beq atoi_csv_done
+    cmp w23, #10
+    beq atoi_csv_done
+    cmp w23, #13
+    beq atoi_csv_done
+    cmp w23, '$'
+    beq atoi_csv_done
+    cmp w23, #0
+    beq atoi_csv_done
+
+    cmp w23, '0'
+    blt atoi_csv_invalido
+    cmp w23, '9'
+    bgt atoi_csv_invalido
+
+    sub w23, w23, '0'
+    mul x10, x10, x5
+    add x10, x10, x23
+    mov x7, #1
 
 atoi_csv_loop:
     ldrb w23, [x21], #1
@@ -329,8 +381,13 @@ atoi_csv_invalido:
     b atoi_csv_loop
 
 atoi_csv_done:
-    ret
+    cbz x7, atoi_csv_ret
+    cmp x6, #-1
+    bne atoi_csv_ret
+    neg x10, x10
 
+atoi_csv_ret:
+    ret
 
 // int_a_ascii: convierte numero en x0 a texto en buffer x1
 
@@ -341,7 +398,14 @@ int_a_ascii:
 
     mov x19, x0
     mov x20, x1
+    mov x21, #0             // bandera: 1 si el numero es negativo
 
+    cmp x19, #0
+    bge int_a_ascii_check_cero
+    mov x21, #1
+    neg x19, x19              // trabajar con el valor absoluto
+
+int_a_ascii_check_cero:
     cbnz x19, int_a_ascii_normal
     mov w2, '0'
     strb w2, [x20]
@@ -367,6 +431,11 @@ int_a_ascii_extraer:
 int_a_ascii_invertir:
     mov x4, #0
 
+    cbz x21, int_a_ascii_inv_loop
+    mov w9, '-'
+    strb w9, [x20, x4]
+    add x4, x4, #1
+
 int_a_ascii_inv_loop:
     cbz x3, int_a_ascii_nulo
     sub x3, x3, #1
@@ -388,6 +457,13 @@ int_a_ascii_fin:
 // ascii_a_int: convierte texto en x0 a numero entero
 ascii_a_int:
     mov x1, #0
+    mov x3, #1            // signo: 1 = positivo, -1 = negativo
+
+    ldrb w2, [x0]
+    cmp w2, '-'
+    bne ascii_a_int_loop
+    mov x3, #-1
+    add x0, x0, #1
 
 ascii_a_int_loop:
     ldrb w2, [x0]
@@ -403,5 +479,10 @@ ascii_a_int_loop:
     b ascii_a_int_loop
 
 ascii_a_int_fin:
+    cmp x3, #-1
+    bne ascii_a_int_ret
+    neg x1, x1
+
+ascii_a_int_ret:
     mov x0, x1
     ret

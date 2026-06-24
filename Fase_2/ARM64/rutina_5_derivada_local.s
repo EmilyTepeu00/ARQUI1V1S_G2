@@ -135,9 +135,6 @@ llamar_leer_5:
 
     // Si hay menos, mostrar error y salir
     bl escribir_error_insuficiente
-    mov x8, SYS_EXIT
-    mov x0, #1
-    svc 0
 
 copiar_datos:
     // COPIAR DATOS AL BUFFER
@@ -211,12 +208,9 @@ ventana_lista:
     // 5*sumaXY - 10*sumaY
     sub x13, x11, x12
 
-    // Multiplicar por 100
-    mov x10, #100
-    mul x14, x13, x10
-
-    // Dividir entre 50
-    udiv x15, x14, #50
+    // Simplificado: (5*sumaXY - 10*sumaY) * 2
+    mov x10, #2
+    mul x15, x13, x10
 
     // Comparar con maximo actual
     cmp x15, x22
@@ -235,3 +229,203 @@ fin_calculo:
     // Guardar el maximo slope
     adr x9, res_max_slope
     str x22, [x9]
+
+    // RESTAURAR STACK
+    mov sp, x26
+
+    // GENERAR SALIDA
+    adr x0, buffer_salida
+    mov x9, #0
+
+    // CALC=LOCAL_DERIVATIVE
+    adr x1, str_calc
+    bl copiar_cadena
+
+    // COLUMN=
+    adr x1, label_column
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_columna
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_START=
+    adr x1, label_wstart
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_window_start
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_END=
+    adr x1, label_wend
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_window_end
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // COUNT=
+    adr x1, label_count
+    bl copiar_cadena
+    mov x23, x9
+    mov x0, x27
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    // WINDOW_SIZE=5
+    adr x1, label_wsize
+    bl copiar_cadena
+
+    // MAX_LOCAL_SLOPE_X100=
+    adr x1, label_max_slope
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, res_max_slope
+    ldr x0, [x2]
+
+    adr x1, buf_num2
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num2
+    bl copiar_cadena
+    bl copiar_newline
+
+    // STATUS=OK
+    adr x1, str_status_ok
+    bl copiar_cadena
+
+    // ESCRIBIR ARCHIVO
+    mov x8, #56
+    mov x0, #-100
+    adr x1, archivo_salida
+    mov x2, #577
+    mov x3, #0644
+    svc #0
+    mov x10, x0
+
+    mov x8, #64
+    mov x0, x10
+    adr x1, buffer_salida
+    mov x2, x9
+    svc #0
+
+    mov x8, #57
+    mov x0, x10
+    svc #0
+
+    // FIN DEL PROGRAMA
+    mov x8, SYS_EXIT
+    mov x0, 0
+    svc 0
+
+
+// ----- ESCRIBIR ERROR POR DATOS INSUFICIENTES -----
+escribir_error_insuficiente:
+    adr x0, buffer_salida
+    mov x9, #0
+
+    adr x1, str_calc
+    bl copiar_cadena
+
+    adr x1, label_column
+    bl copiar_cadena
+    mov x23, x9
+
+    adr x2, arg_columna
+    ldr x0, [x2]
+
+    adr x1, buf_num1
+    bl int_a_ascii
+    mov x9, x23
+    adr x0, buf_num1
+    bl copiar_cadena
+    bl copiar_newline
+
+    adr x1, str_status_error
+    bl copiar_cadena
+
+    adr x1, str_error
+    bl copiar_cadena
+
+    adr x1, str_detail
+    bl copiar_cadena
+
+    // ESCRIBIR ARCHIVO DE ERROR
+    mov x8, #56
+    mov x0, #-100
+    adr x1, archivo_salida
+    mov x2, #577
+    mov x3, #0644
+    svc #0
+    mov x10, x0
+
+    mov x8, #64
+    mov x0, x10
+    adr x1, buffer_salida
+    mov x2, x9
+    svc #0
+
+    mov x8, #57
+    mov x0, x10
+    svc #0
+
+    // TERMINAR EL PROGRAMA
+    mov x8, SYS_EXIT
+    mov x0, #1
+    svc 0
+
+// ----- FUNCIONES AUXILIARES -----
+
+copiar_cadena:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adr x0, buffer_salida
+
+loop_cc:
+    ldrb w2, [x1]
+    cmp w2, #0
+    beq fin_cc
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    add x1, x1, #1
+    b loop_cc
+
+fin_cc:
+    ldp x29, x30, [sp], #16
+    ret
+
+copiar_newline:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    mov w2, #10
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    ldp x29, x30, [sp], #16
+    ret

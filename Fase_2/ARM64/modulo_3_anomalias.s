@@ -71,7 +71,7 @@ arg_window_end:   .skip 8
 
 // COPIA DE LOS DATOS LEIDOS
 // Copia los datos aqui antes de llamar a raiz_cuadrada
-datos_copia:   .skip 240     // hasta 30 valores de 8 bytes cada uno
+datos_copia:   .skip 16384   // hasta 2048 valores de 8 bytes cada uno
 
 .section .text
 .global _start
@@ -85,7 +85,7 @@ _start:
     cmp x0, #5              // verificar parametros
     blt usar_default        // columna 7 por default
 
-    ldr x17, [sp, #16]      // archivo
+    ldr x9, [sp, #16]       // archivo (utils espera x9)
 
     ldr x0, [sp, #24]       // argv[2] = linea inicial
     bl ascii_a_int
@@ -115,7 +115,7 @@ usar_default:
     mov x11, #7
     mov x12, #1
     mov x13, #30
-    adr x17, archivo_default
+    adr x9, archivo_default
 
     adr x0, arg_columna
     str x11, [x0]

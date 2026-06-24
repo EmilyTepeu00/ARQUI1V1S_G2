@@ -118,3 +118,13 @@ def obtener_resultados_arm64(variable=None):
         return list(cursor)
     except Exception:
         return []
+
+# OBTENER DECISIONES DEL MOTOR ARM64 EN VIVO
+def obtener_decisiones_arm64(cantidad=10):
+    if _db is None:
+        return []
+    try:
+        cursor = _db["arm64_decisiones"].find({}, {"_id": 0}).sort("timestamp", -1).limit(cantidad)
+        return list(cursor)
+    except Exception:
+        return []

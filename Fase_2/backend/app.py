@@ -297,6 +297,12 @@ def iniciar_servicios():
     print(f"\n[BACKEND] http://localhost:{config.FLASK_PORT}\n")
 
 
+@app.route("/api/decisiones")
+def api_decisiones():
+    n = request.args.get("n", 10, type=int)
+    return jsonify(db.obtener_ultimos("arm64_decisiones", n))
+
+
 if __name__ == "__main__":
     iniciar_servicios()
     app.run(host=config.FLASK_HOST, port=config.FLASK_PORT,

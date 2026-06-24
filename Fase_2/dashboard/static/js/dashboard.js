@@ -166,6 +166,35 @@ async function actualizarARM64() {
     } catch (e) { console.error('Error actualizarARM64:', e); }
 }
 
+// DECISIONES DEL MOTOR ARM64 EN VIVO
+async function actualizarDecisiones() {
+    try {
+        const res = await fetch('/api/decisiones?n=10');
+        const decisiones = await res.json();
+
+        const dEl = document.getElementById('decisionesList');
+        if (!decisiones || decisiones.length === 0) {
+            dEl.innerHTML = '<div class="evento" style="border-left-color:#6c757d;"><div class="evento-texto" style="color:#6c757d;">No hay decisiones registradas</div></div>';
+            return;
+        }
+
+        dEl.innerHTML = decisiones.map(d => `
+            <div class="evento" style="border-left-color: ${d.riesgo === 'HIGH' || d.riesgo === 'CRITICAL' ? '#dc2626' : d.riesgo === 'MEDIUM' ? '#eab308' : '#16a34a'};">
+                <div class="evento-fecha">${d.timestamp ? d.timestamp.substring(0,19).replace('T',' ') : '--'}</div>
+                <div class="evento-texto">
+                    <strong>${d.accion || '--'}</strong>
+                    ${d.target ? ' → ' + d.target : ''}
+                    ${d.riesgo ? ' | Riesgo: ' + d.riesgo : ''}
+                    ${d.valor ? ' | Valor: ' + d.valor : ''}
+                    ${d.razon ? ' | ' + d.razon : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Error actualizarDecisiones:', e);
+    }
+}
+
 async function cmd(accion, valor) {
     try {
         const res = await fetch('/api/comando', {
@@ -312,6 +341,7 @@ async function cicloCompleto() {
     if (graficasActualizadas % 2 === 0) await actualizarGraficas();
     if (graficasActualizadas % 4 === 0) await actualizarHistorial();
     if (graficasActualizadas % 6 === 0) await actualizarARM64();
+    if (graficasActualizadas % 6 === 0) await actualizarDecisiones();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

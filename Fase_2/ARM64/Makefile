@@ -29,6 +29,8 @@ all: $(UTILS_OBJ) $(MODULOS)
 $(UTILS_OBJ): utils.s
 	$(AS) utils.s -o utils.o
 
+# Fase 1
+
 modulo_1_media: modulo_1_media.s $(UTILS_OBJ)
 	$(AS) modulo_1_media.s -o modulo_1_media.o
 	$(LD) utils.o modulo_1_media.o -o modulo_1_media
@@ -49,6 +51,13 @@ modulo_5_tendecia: modulo_5_tendecia.s $(UTILS_OBJ)
 	$(AS) modulo_5_tendecia.s -o modulo_5_tendecia.o
 	$(LD) utils.o modulo_5_tendecia.o -o modulo_5_tendecia
 
+# Fase 2
+
+modulo_2_regresion: modulo_2_regresion.s $(UTILS_OBJ)
+	$(AS) modulo_2_regresion.s -o modulo_2_regresion.o
+	$(LD) utils.o modulo_2_regresion.o -o modulo_2_regresion
+
+
 run: all
 	@echo "--- Ejecutando modulos ARM64 ---"
 	./modulo_1_media     && cat resultado_media.txt
@@ -57,8 +66,10 @@ run: all
 	./modulo_4_prediccion && cat resultado_prediccion.txt
 	./modulo_5_tendecia  && cat resultado_tendencia.txt
 
+	./modulo_2_regresion && cat resultado_regresion.txt
+
 clean:
 	rm -f $(UTILS_OBJ)
-	rm -f modulo_1_media.o modulo_2_varianza.o modulo_3_anomalias.o modulo_4_prediccion.o modulo_5_tendecia.o
-	rm -f modulo_1_media modulo_2_varianza modulo_3_anomalias modulo_4_prediccion modulo_5_tendecia
-	rm -f resultado_media.txt resultado_varianza.txt resultado_anomalias.txt resultado_prediccion.txt resultado_tendencia.txt
+	rm -f modulo_1_media.o modulo_2_varianza.o modulo_3_anomalias.o modulo_4_prediccion.o modulo_5_tendecia.o modulo_2_regresion.o
+	rm -f modulo_1_media modulo_2_varianza modulo_3_anomalias modulo_4_prediccion modulo_5_tendecia modulo_2_regresion
+	rm -f resultado_media.txt resultado_varianza.txt resultado_anomalias.txt resultado_prediccion.txt resultado_tendencia.txt resultado_regresion.txt

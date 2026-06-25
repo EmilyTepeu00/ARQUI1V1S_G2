@@ -113,3 +113,201 @@ loop_acum:
 
     add x10, x10, #1        // i++
     b loop_acum
+
+fin_acum:
+    // === Calcular pendiente M_X100 ===
+    // primero calculamos el numerador
+    mul x11, x27, x7        // x11 = N * sum(X*Y)
+    mul x12, x5, x6         // x12 = sum(X) * sum(Y)
+    sub x13, x11, x12       // x13 = numerador
+
+    // ahora calculamos el denominador
+    mul x11, x27, x8        // x11 = N * sum(X^2)
+    mul x12, x5, x5         // x12 = (sum(X))^2
+    sub x14, x11, x12       // x14 = denominador
+
+    // validar que no sea división por cero
+    cmp x14, #0
+    beq error_division_cero
+
+    mov x15, #100
+    mul x13, x13, x15           // x13 = numerador * 100
+    sdiv x15, x13, x14          // x15 = M_X100 (pendiente * 100)
+
+    // === Calcular el intercepto B_X100 ===
+    mov x16, #100
+    mul x16, x6, x16            // x16 = sum(Y) * 100
+    mul x17, x15, x5            // x17 = M_X100 * sum(X)
+    sub x16, x16, x17           // x16 = (sum(Y)*100) - (M_X100*sum(X))
+    sdiv x16, x16, x27          // x16 = B_X100 (intercepto * 100)
+
+    // === Calcular predicción ===
+    ldr x23, [sp, #32]          
+    add x17, x27, x23           // x17 = X_FUTURE = N + K
+    mul x11, x15, x17           // x11 = M_X100 * X_FUTURE
+    add x11, x11, x16           // x11 = (M_X100 * X_FUTURE) + B_X100
+    mov x12, #100             // x12 = 100
+    sdiv x17, x11, x12          // x17 = Y_PRED (valor predicho)
+
+    // Guardar resultados
+    str x15, [sp, #40]
+    str x16, [sp, #48]
+    str x17, [sp, #56]
+    str x27, [sp, #64]
+
+    mov sp, x26
+
+    // === Generar salida ===
+    adr x0, buffer_salida           // apunta al buffer de salida
+    mov x9, #0                      // posición actual del buffer
+
+    adr x1, linea_module
+    bl copiar_etiqueta
+
+    adr x1, label_column
+    bl copiar_etiqueta
+    ldr x0, [sp, #0]                // cargo la columna desde el stack
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_wstart
+    bl copiar_etiqueta
+    ldr x0, [sp, #8]                // cargo linea inicial
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_wend
+    bl copiar_etiqueta
+    ldr x0, [sp, #16]               // cargo linea final
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_count
+    bl copiar_etiqueta
+    ldr x0, [sp, #64]               // cargo N
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_k
+    bl copiar_etiqueta
+    ldr x0, [sp, #32]               // cargo K
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_slope
+    bl copiar_etiqueta
+    ldr x0, [sp, #40]               // cargo M_X100
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_intercept
+    bl copiar_etiqueta
+    ldr x0, [sp, #48]               // cargo B_X100
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_predicted
+    bl copiar_etiqueta
+    ldr x0, [sp, #32]       // Cargo K
+    bl escribir_numero
+    adr x0, buffer_salida
+    mov w2, #'='            // w2 = caracter '='
+    strb w2, [x0, x9]       // se escribe en buffer
+    add x9, x9, #1          // avanzo la posición
+    ldr x0, [sp, #56]       // cargo Y_PRED
+    bl escribir_numero
+    bl agregar_newline
+
+    adr x1, label_status
+    bl copiar_etiqueta
+
+    // Escribir archivo
+    mov x8, #56
+    mov x0, #-100
+    adr x1, nombre_salida
+    mov x2, #577
+    mov x3, #0644
+    svc #0
+    mov x10, x0
+
+    mov x8, #64
+    mov x0, x10
+    adr x1, buffer_salida
+    mov x2, x9
+    svc #0
+
+    mov x8, #57
+    mov x0, x10
+    svc #0
+
+    // Imprimir a stdout
+    mov x8, #64
+    mov x0, #1
+    adr x1, buffer_salida
+    mov x2, x9
+    svc #0
+
+    mov x8, #93
+    mov x0, #0
+    svc #0
+
+// === Manejo de Errores === 
+error_insuficientes_datos:
+    mov x0, #1
+    adr x1, err_insuf
+    mov x2, len_err_insuf
+    mov x8, #64
+    svc #0
+    mov x8, #93
+    mov x0, #1
+    svc #0
+
+error_division_cero:
+    mov x0, #1
+    adr x1, err_div0
+    mov x2, len_err_div0
+    mov x8, #64
+    svc #0
+    mov x8, #93
+    mov x0, #1
+    svc #0
+
+// === Funcines Auxiliares ===
+copiar_etiqueta:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+loop_et:
+    ldrb w2, [x1], #1
+    cmp w2, #0
+    beq fin_et
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    b loop_et
+fin_et:
+    ldp x29, x30, [sp], #16
+    ret
+
+escribir_numero:
+    stp x29, x30, [sp, #-32]!
+    str x19, [sp, #16]
+    mov x19, x0
+    sub sp, sp, #16
+    str x9, [sp]
+    adr x1, buf_num1
+    bl int_a_ascii
+    ldr x9, [sp]
+    add sp, sp, #16
+    adr x1, buf_num1
+    bl copiar_etiqueta
+    ldr x19, [sp, #16]
+    ldp x29, x30, [sp], #32
+    ret
+
+agregar_newline:
+    stp x29, x30, [sp, #-16]!
+    adr x0, buffer_salida
+    mov w2, #10
+    strb w2, [x0, x9]
+    add x9, x9, #1
+    ldp x29, x30, [sp], #16
+    ret

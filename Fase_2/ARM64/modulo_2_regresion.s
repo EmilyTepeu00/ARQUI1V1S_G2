@@ -1,5 +1,5 @@
 /* ====================================================================================
-                           Módulo 2: Regresión Lineal Simple
+                            Módulo 2: Regresión Lineal Simple
    ====================================================================================
     modulo_2_regresion.s
     Módulo 2: Regresión Lineal Simple
@@ -25,6 +25,37 @@
 .section .data
 nombre_csv:     .asciz "lecturas.csv"
 nombre_salida:  .asciz "resultado_regresion.txt"
+
+// Textos estructurados dinámicos
+lbl_calc:      .asciz "CALC=LINEAR_REGRESSION\nCOLUMN="
+lbl_win_start: .asciz "\nWINDOW_START="
+lbl_win_end:   .asciz "\nWINDOW_END="
+lbl_count:     .asciz "\nCOUNT="
+lbl_slope:     .asciz "\nSLOPE_X100="
+lbl_trend:     .asciz "\nTREND="
+lbl_status:    .asciz "\nSTATUS=OK\n"
+
+// Diccionario de variables
+col_2_nom: .asciz "TEMP"
+col_3_nom: .asciz "HUM_AIRE"
+col_4_nom: .asciz "HUM_SUELO_1"
+col_5_nom: .asciz "HUM_SUELO_2"
+col_6_nom: .asciz "LUZ"
+col_7_nom: .asciz "GAS"
+col_8_nom: .asciz "RIEGO_1"
+col_9_nom: .asciz "RIEGO_2"
+col_unk:   .asciz "UNKNOWN"
+
+// Resultados de la tendencia
+trend_asc:     .asciz "ASCENDING"
+trend_desc:    .asciz "DESCENDING"
+trend_stab:    .asciz "STABLE"
+
+// Mensaje de error estructurado usando .ascii y .equ
+err_insuficiente: 
+    .ascii "STATUS=ERROR\nERROR=INSUFFICIENT_DATA\nDETAIL=REQUIRES_AT_LEAST_2_VALUES\n"
+.equ len_err_insuficiente, . - err_insuficiente
+
 
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS

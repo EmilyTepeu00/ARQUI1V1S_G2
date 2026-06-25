@@ -89,7 +89,7 @@ _start:                   // Es lo primero que se ejecuta
     // Archivo_entrada linea_inicial linea_final columna_sensor
     // --------------------------------------------------------
 
-    ldr x17, [sp, #16]       // Archivo entrada
+    ldr x9, [sp, #16]        // Archivo entrada
 
     ldr x0, [sp, #24]        // Linea inicial
     bl  ascii_a_int

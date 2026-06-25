@@ -118,7 +118,7 @@ _start:
     cmp x0, #5
     bne rmse_error_args
 
-    ldr x17, [sp, #16]        // Puntero a nombre de archivo
+    ldr x9, [sp, #16]         // Puntero a nombre de archivo
 
     ldr x0, [sp, #24]         // linea_inicial (string)
     bl ascii_a_int
@@ -257,5 +257,126 @@ rmse_ciclo_suma_fin:
     svc #0
 
     mov x0, #0
+    mov x8, #93
+    svc #0
+
+rmse_escribir:
+    mov x2, x1
+    mov x1, x0
+    ldr x4, =guardado_fd_salida
+    ldr x0, [x4]
+    mov x8, #64
+    svc #0
+    ret
+
+rmse_escribir_ascii_nl:
+    str x30, [sp, #-16]!
+    ldr x11, =buffer_ascii
+
+rmse_calcular_longitud:
+    ldrb w12, [x11], #1
+    cmp w12, #0
+    bne rmse_calcular_longitud
+
+    sub x11, x11, #1
+    ldr x12, =buffer_ascii
+    sub x1, x11, x12           // longitud de la cadena
+
+    ldr x0, =buffer_ascii
+    bl rmse_escribir
+
+    ldr x0, =salto_linea
+    mov x1, #1
+    bl rmse_escribir
+
+    ldr x30, [sp], #16
+    ret
+
+raiz_entera:
+    mov x1, x0        // Numero del que se busca raiz (se preserva)
+    mov x4, #1        // Iterador (candidato a raiz)
+
+raiz_entera_ciclo:
+    mul x2, x4, x4
+    cmp x2, x1        // x2 > x1 ?
+    bgt raiz_entera_fin
+    add x4, x4, #1
+    b raiz_entera_ciclo
+
+raiz_entera_fin:
+    sub x0, x4, #1
+    ret
+
+// ---- manejo de errores ----
+
+rmse_error_args:
+    ldr x0, =texto_calc
+    mov x1, len_texto_calc
+    bl rmse_escribir
+
+    ldr x0, =texto_estado_error
+    mov x1, len_texto_estado_error
+    bl rmse_escribir
+
+    ldr x0, =texto_etiqueta_error
+    mov x1, len_texto_etiqueta_error
+    bl rmse_escribir
+
+    ldr x0, =error_args
+    mov x1, len_error_args
+    bl rmse_escribir
+
+    ldr x0, =texto_etiqueta_detalle
+    mov x1, len_texto_etiqueta_detalle
+    bl rmse_escribir
+
+    ldr x0, =detalle_args
+    mov x1, len_detalle_args
+    bl rmse_escribir
+
+    // cerrar el archivo de salida antes de terminar
+    ldr x4, =guardado_fd_salida
+    ldr x0, [x4]
+    mov x8, #57
+    svc #0
+
+    mov x0, #1
+    mov x8, #93
+    svc #0
+
+rmse_error_datos_insuficientes:
+    mov sp, x26
+
+    ldr x0, =texto_calc
+    mov x1, len_texto_calc
+    bl rmse_escribir
+
+    ldr x0, =texto_estado_error
+    mov x1, len_texto_estado_error
+    bl rmse_escribir
+
+    ldr x0, =texto_etiqueta_error
+    mov x1, len_texto_etiqueta_error
+    bl rmse_escribir
+
+    ldr x0, =error_datos_insuficientes
+    mov x1, len_error_datos_insuficientes
+    bl rmse_escribir
+
+    ldr x0, =texto_etiqueta_detalle
+    mov x1, len_texto_etiqueta_detalle
+    bl rmse_escribir
+
+    ldr x0, =detalle_datos_insuficientes
+    mov x1, len_detalle_datos_insuficientes
+    bl rmse_escribir
+
+    // cerrar el archivo de salida antes de terminar
+    ldr x4, =guardado_fd_salida
+    ldr x0, [x4]
+    mov x8, #57
+    svc #0
+
+    mov x0, #1
     mov x8, #93
     svc #0

@@ -50,8 +50,8 @@ buf_num1:      .skip 64
 
 _start:
     // === Leer argumentos ===
-    ldr x0,  [sp, #16]      // cargo el nombre del archivo
-    ldr x9,  [sp, #24]      // cargo '1' como texto
+    ldr x9,  [sp, #16]      // cargo el nombre del archivo
+    ldr x0,  [sp, #24]      // cargo '1' como texto
     bl ascii_a_int          // convierto texto a numero
     mov x12, x0             // guardo linea inicial en x12
 

@@ -101,6 +101,36 @@ usar_defaults:
     mov x11, #2             // Columna = 2 (TEMP)
 
 
+llamar_utils:
+    // --------------------------------------------------------
+    // 2. EXTRAER DATOS CON UTILS.S
+    // --------------------------------------------------------
+    bl  read_column_to_stack
+    
+    // De utils.s obtengo:
+    // x0 = puntero al valor FINAL (último insertado en el stack)
+    // x1 = puntero límite (arriba del valor INICIAL)
+    // x2 = N (cantidad de datos procesados, COUNT)
+
+    mov x27, x2             // Guardamos COUNT en x27 porque x2 se perderá
+
+    ldr x22, [x0]           // x22 = Valor final
+    
+    sub x9, x1, #16         // El valor inicial fue el primero en entrar (en x1 - 16)
+    ldr x19, [x9]           // x19 = Valor inicial
+
+    // --------------------------------------------------------
+    // 3. CÁLCULOS MATEMÁTICOS DE PREDICCIÓN LINEAL SIMPLE
+    // --------------------------------------------------------
+    sub x23, x22, x19       // Diferencia total = final - inicial
+    sub x4, x27, #1         // x4 = N - 1 (N = Cantidad de intervalos)
+    
+    cmp x4, #0
+    ble error_matematico    // Evitar división por cero si solo hay 1 dato
+    
+    sdiv x24, x23, x4       // Promedio de cambio = diferencia / (COUNT - 1)
+    add  x25, x22, x24      // Predicción = final + promedio
+
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS
 // ============================================================

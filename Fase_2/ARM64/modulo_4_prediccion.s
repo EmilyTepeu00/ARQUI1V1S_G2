@@ -131,6 +131,128 @@ llamar_utils:
     sdiv x24, x23, x4       // Promedio de cambio = diferencia / (COUNT - 1)
     add  x25, x22, x24      // Predicción = final + promedio
 
+    // --------------------------------------------------------
+    // 4. ARMAR EL TEXTO DE SALIDA DINÁMICO
+    // --------------------------------------------------------
+    adr x20, buffer_salida
+
+    // --- Escribir CALC y parte de COLUMN ---
+    adr x0, lbl_calc
+    bl  copiar_a_buffer
+
+    // --- IDENTIFICAR EL NOMBRE DE LA COLUMNA  ---
+    cmp x11, #2
+    beq col_es_2
+    cmp x11, #3
+    beq col_es_3
+    cmp x11, #4
+    beq col_es_4
+    cmp x11, #5
+    beq col_es_5
+    cmp x11, #6
+    beq col_es_6
+    cmp x11, #7
+    beq col_es_7
+    cmp x11, #8
+    beq col_es_8
+    cmp x11, #9
+    beq col_es_9
+    
+    // Si la columna no está en el diccionario
+    adr x0, col_unk
+    b   escribir_columna
+
+col_es_2: adr x0, col_2_nom; b escribir_columna
+col_es_3: adr x0, col_3_nom; b escribir_columna
+col_es_4: adr x0, col_4_nom; b escribir_columna
+col_es_5: adr x0, col_5_nom; b escribir_columna
+col_es_6: adr x0, col_6_nom; b escribir_columna
+col_es_7: adr x0, col_7_nom; b escribir_columna
+col_es_8: adr x0, col_8_nom; b escribir_columna
+col_es_9: adr x0, col_9_nom; b escribir_columna
+
+escribir_columna:
+    bl  copiar_a_buffer
+
+    // --- Escribir WINDOW_START ---
+    adr x0, lbl_win_start
+    bl  copiar_a_buffer
+    mov x0, x12             // WINDOW_START
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir WINDOW_END ---
+    adr x0, lbl_win_end
+    bl  copiar_a_buffer
+    mov x0, x13             // WINDOW_END
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir COUNT ---
+    adr x0, lbl_count
+    bl  copiar_a_buffer
+    mov x0, x27             // COUNT (N) 
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir INITIAL_VALUE ---
+    adr x0, lbl_init
+    bl  copiar_a_buffer
+    mov x0, x19             // INITIAL_VALUE
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir FINAL_VALUE ---
+    adr x0, lbl_final
+    bl  copiar_a_buffer
+    mov x0, x22             // FINAL_VALUE
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir TOTAL_DIFF ---
+    adr x0, lbl_diff
+    bl  copiar_a_buffer
+    mov x0, x23             // TOTAL_DIFF
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir AVG_CHANGE ---
+    adr x0, lbl_avg
+    bl  copiar_a_buffer
+    mov x0, x24             // AVG_CHANGE
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir PREDICTED_NEXT ---
+    adr x0, lbl_next
+    bl  copiar_a_buffer
+    mov x0, x25             // PREDICTED_NEXT
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir STATUS ---
+    adr x0, lbl_status
+    bl  copiar_a_buffer
+
+    b guardar_archivo
+
+
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS
 // ============================================================

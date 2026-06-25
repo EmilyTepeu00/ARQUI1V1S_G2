@@ -252,6 +252,49 @@ escribir_columna:
 
     b guardar_archivo
 
+error_matematico:
+    // Imprimir error estructurado por stdout
+    mov x8, #64
+    mov x0, #1
+    adr x1, err_insuficiente
+    mov x2, len_err_insuficiente
+    svc #0
+
+    // Salir con código de error
+    mov x0, #1
+    mov x8, #93
+    svc #0
+
+guardar_archivo:
+    // Calcular tamaño del texto armado
+    adr x1, buffer_salida
+    sub x26, x20, x1        
+
+    // Abrir archivo (resultado_prediccion.txt)
+    mov x8, #56
+    mov x0, #-100
+    adr x1, nombre_salida
+    mov x2, #577            // O_CREAT | O_TRUNC | O_WRONLY
+    mov x3, #0644
+    svc #0
+    mov x10, x0             
+
+    // Escribir todo el buffer formateado
+    mov x8, #64
+    mov x0, x10
+    adr x1, buffer_salida
+    mov x2, x26
+    svc #0
+
+    // Cerrar
+    mov x8, #57
+    mov x0, x10
+    svc #0
+
+    // Salir sin errores
+    mov x8, #93
+    mov x0, #0
+    svc #0
 
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS
@@ -287,7 +330,7 @@ conv_positivo:
 
 /*  Ejecutar para pruebas:
     make modulo_4_prediccion
-    qemu-aarch64 ./modulo_4_prediccion 
+    qemu-aarch64 ./modulo_4_prediccion lecturas.csv 1 25 3
     cat resultado_prediccion.txt
 */
 

@@ -56,6 +56,55 @@ err_insuficiente:
     .ascii "STATUS=ERROR\nERROR=INSUFFICIENT_DATA\nDETAIL=REQUIRES_AT_LEAST_2_VALUES\n"
 .equ len_err_insuficiente, . - err_insuficiente
 
+.section .bss
+buffer_salida:  .skip 1024  // Buffer donde se armara el archivo completo
+buf_conv:       .skip 32    // Buffer temporal para conversiones numéricas
+
+.section .text
+.global _start
+
+_start:
+    // --------------------------------------------------------
+    // 1. LEER ARGUMENTOS DE LA TERMINAL
+    // ./modulo_2_regresion archivo inicio fin columna
+    // --------------------------------------------------------
+    ldr x0, [sp]            // x0 = argc
+    cmp x0, #5              // Se debe de ingresar programa, archivo, inicio, fin, columna
+    blt usar_defaults       // Si no, usar valores por defecto
+
+    ldr x9, [sp, #16]       // Dato 1: nombre del archivo 
+
+    ldr x0, [sp, #24]       // Dato 2: linea inicial (WINDOW_START) 
+    bl  ascii_a_int         
+    mov x12, x0             
+
+    ldr x0, [sp, #32]       // Dato 3: linea final (WINDOW_END)
+    bl  ascii_a_int         
+    mov x13, x0             
+
+    ldr x0, [sp, #40]       // Dato 4: columna
+    bl  ascii_a_int         
+    mov x11, x0             
+    b   llamar_utils
+
+// Valores por defecto
+usar_defaults:
+    adr x9, nombre_csv      // Cargar archivo por defecto para utils.s
+    mov x12, #1000        // WINDOW_START por defecto
+    mov x13, #1050        // WINDOW_END por defecto
+    mov x11, #2             // Columna = 2 (TEMP)
+
+llamar_utils:
+    // --------------------------------------------------------
+    // 2. EXTRAER DATOS CON UTILS.S
+    // --------------------------------------------------------
+    bl  read_column_to_stack
+
+    mov x27, x2             // Guardamos COUNT en x27 porque x2 se perderá
+
+    cmp x27, #2
+    blt error_datos         // Requiere al menos 2 datos para una regresión
+
 
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS

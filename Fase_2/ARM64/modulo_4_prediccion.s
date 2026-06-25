@@ -33,11 +33,37 @@ nombre_csv:     .asciz "lecturas.csv"
 nombre_salida:  .asciz "resultado_prediccion.txt"
 
 // Textos fijos en formato .asciz
+lbl_calc:      .asciz "CALC=SIMPLE-PREDICTION\nCOLUMN="
+lbl_win_start: .asciz "\nWINDOW_START="
+lbl_win_end:   .asciz "\nWINDOW_END="
+lbl_count:     .asciz "\nCOUNT="
 lbl_init:      .asciz "\nINITIAL_VALUE="
 lbl_final:     .asciz "\nFINAL_VALUE="
 lbl_diff:      .asciz "\nTOTAL_DIFF="
 lbl_avg:       .asciz "\nAVG_CHANGE="
 lbl_next:      .asciz "\nPREDICTED_NEXT="
+lbl_status:    .asciz "\nSTATUS=OK\n"
+
+// Variables para del encabezado dinámico
+col_2_nom: .asciz "TEMP"
+col_3_nom: .asciz "HUM_AIRE"
+col_4_nom: .asciz "HUM_SUELO_1"
+col_5_nom: .asciz "HUM_SUELO_2"
+col_6_nom: .asciz "LUZ"
+col_7_nom: .asciz "GAS"
+col_8_nom: .asciz "RIEGO_1"
+col_9_nom: .asciz "RIEGO_2"
+col_unk:   .asciz "UNKNOWN"
+
+// Mensaje de error estructurado usando .ascii y .equ
+err_insuficiente: 
+    .ascii "STATUS=ERROR\nERROR=INSUFFICIENT_DATA\nDETAIL=REQUIRES_AT_LEAST_2_VALUES\n"
+.equ len_err_insuficiente, . - err_insuficiente
+
+
+.section .bss
+buffer_salida:  .skip 1024   // Buffer donde se armara el archivo completo
+buf_conv:       .skip 32     // Buffer temporal para conversiones numéricas
 
 
 // ============================================================

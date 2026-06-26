@@ -45,14 +45,14 @@ lbl_next:      .asciz "\nPREDICTED_NEXT="
 lbl_status:    .asciz "\nSTATUS=OK\n"
 
 // Variables para del encabezado dinámico
-col_2_nom: .asciz "TEMP"
-col_3_nom: .asciz "HUM_AIRE"
-col_4_nom: .asciz "HUM_SUELO_1"
-col_5_nom: .asciz "HUM_SUELO_2"
-col_6_nom: .asciz "LUZ"
-col_7_nom: .asciz "GAS"
-col_8_nom: .asciz "RIEGO_1"
-col_9_nom: .asciz "RIEGO_2"
+col_1_nom: .asciz "TEMP"
+col_2_nom: .asciz "HUM_AIRE"
+col_3_nom: .asciz "HUM_SUELO_1"
+col_4_nom: .asciz "HUM_SUELO_2"
+col_5_nom: .asciz "LUZ"
+col_6_nom: .asciz "GAS"
+col_7_nom: .asciz "RIEGO_1"
+col_8_nom: .asciz "RIEGO_2"
 col_unk:   .asciz "UNKNOWN"
 
 // Mensaje de error estructurado usando .ascii y .equ
@@ -98,7 +98,7 @@ usar_defaults:
     adr x9, nombre_csv      // Cargar archivo por defecto para utils.s
     mov x12, #1000        // WINDOW_START por defecto
     mov x13, #1050        // WINDOW_END por defecto
-    mov x11, #2             // Columna = 2 (TEMP)
+    mov x11, #5             // Columna = 5 (LUZ)
 
 
 llamar_utils:
@@ -141,6 +141,8 @@ llamar_utils:
     bl  copiar_a_buffer
 
     // --- IDENTIFICAR EL NOMBRE DE LA COLUMNA  ---
+    cmp x11, #1
+    beq col_es_1
     cmp x11, #2
     beq col_es_2
     cmp x11, #3
@@ -155,13 +157,12 @@ llamar_utils:
     beq col_es_7
     cmp x11, #8
     beq col_es_8
-    cmp x11, #9
-    beq col_es_9
     
     // Si la columna no está en el diccionario
     adr x0, col_unk
     b   escribir_columna
 
+col_es_1: adr x0, col_1_nom; b escribir_columna
 col_es_2: adr x0, col_2_nom; b escribir_columna
 col_es_3: adr x0, col_3_nom; b escribir_columna
 col_es_4: adr x0, col_4_nom; b escribir_columna
@@ -169,7 +170,6 @@ col_es_5: adr x0, col_5_nom; b escribir_columna
 col_es_6: adr x0, col_6_nom; b escribir_columna
 col_es_7: adr x0, col_7_nom; b escribir_columna
 col_es_8: adr x0, col_8_nom; b escribir_columna
-col_es_9: adr x0, col_9_nom; b escribir_columna
 
 escribir_columna:
     bl  copiar_a_buffer

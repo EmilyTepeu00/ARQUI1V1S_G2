@@ -36,14 +36,14 @@ lbl_trend:     .asciz "\nTREND="
 lbl_status:    .asciz "\nSTATUS=OK\n"
 
 // Diccionario de variables
-col_2_nom: .asciz "TEMP"
-col_3_nom: .asciz "HUM_AIRE"
-col_4_nom: .asciz "HUM_SUELO_1"
-col_5_nom: .asciz "HUM_SUELO_2"
-col_6_nom: .asciz "LUZ"
-col_7_nom: .asciz "GAS"
-col_8_nom: .asciz "RIEGO_1"
-col_9_nom: .asciz "RIEGO_2"
+col_1_nom: .asciz "TEMP"
+col_2_nom: .asciz "HUM_AIRE"
+col_3_nom: .asciz "HUM_SUELO_1"
+col_4_nom: .asciz "HUM_SUELO_2"
+col_5_nom: .asciz "LUZ"
+col_6_nom: .asciz "GAS"
+col_7_nom: .asciz "RIEGO_1"
+col_8_nom: .asciz "RIEGO_2"
 col_unk:   .asciz "UNKNOWN"
 
 // Resultados de la tendencia
@@ -92,7 +92,7 @@ usar_defaults:
     adr x9, nombre_csv      // Cargar archivo por defecto para utils.s
     mov x12, #1000        // WINDOW_START por defecto
     mov x13, #1050        // WINDOW_END por defecto
-    mov x11, #2             // Columna = 2 (TEMP)
+    mov x11, #5             // Columna = 2 (LUZ)
 
 llamar_utils:
     // --------------------------------------------------------

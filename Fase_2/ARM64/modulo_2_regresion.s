@@ -141,6 +141,28 @@ loop_sumatorias:
     sub x24, x24, #16       // Retroceder puntero al siguiente elemento en orden de tiempo
     b loop_sumatorias
 
+fin_sumatorias:
+    // --------------------------------------------------------
+    // 4. FÓRMULA DE REGRESIÓN
+    // --------------------------------------------------------
+    // Numerador
+    mul x4, x27, x21        // N * sum(X_i * Y_i)
+    mul x5, x19, x20        // sum(X_i) * sum(Y_i)
+    sub x6, x4, x5          // x6 = Numerador
+
+    // Denominador
+    mul x4, x27, x22        // N * sum(X_i * X_i)
+    mul x5, x19, x19        // sum(X_i) * sum(X_i)
+    sub x7, x4, x5          // x7 = Denominador
+
+    cbz x7, es_estable      // Si denominador es 0, la pendiente es 0 
+
+    // M_X100 = (Numerador * 100) / Denominador
+    mov x4, #100
+    mul x6, x6, x4          // Numerador * 100
+    sdiv x23, x6, x7        // x23 = SLOPE_X100
+    b evaluar_tendencia
+
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS
 // ============================================================

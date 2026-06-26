@@ -182,6 +182,129 @@ set_descending:
     adr x25, trend_desc
     b armar_salida
 
+armar_salida:
+    // --------------------------------------------------------
+    // 5. ARMAR EL TEXTO DE SALIDA DINÁMICO
+    // --------------------------------------------------------
+    adr x20, buffer_salida
+
+  // --- Escribir CALC y parte de COLUMN ---
+    adr x0, lbl_calc
+    bl  copiar_a_buffer
+
+  // --- IDENTIFICAR EL NOMBRE DE LA COLUMNA  ---
+    cmp x11, #2; beq col_es_1
+    cmp x11, #3; beq col_es_2
+    cmp x11, #4; beq col_es_3
+    cmp x11, #5; beq col_es_4
+    cmp x11, #6; beq col_es_5
+    cmp x11, #7; beq col_es_6
+    cmp x11, #8; beq col_es_7
+    cmp x11, #9; beq col_es_8
+    // Si la columna no está en el diccionario
+    adr x0, col_unk; b escribir_col 
+
+col_es_1: adr x0, col_1_nom; b escribir_col
+col_es_2: adr x0, col_2_nom; b escribir_col
+col_es_3: adr x0, col_3_nom; b escribir_col
+col_es_4: adr x0, col_4_nom; b escribir_col
+col_es_5: adr x0, col_5_nom; b escribir_col
+col_es_6: adr x0, col_6_nom; b escribir_col
+col_es_7: adr x0, col_7_nom; b escribir_col
+col_es_8: adr x0, col_8_nom; b escribir_col
+
+escribir_col:
+    bl  copiar_a_buffer
+
+    // --- Escribir WINDOW_START ---
+    adr x0, lbl_win_start
+    bl  copiar_a_buffer
+    mov x0, x12             // WINDOW_START
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir WINDOW_END ---
+    adr x0, lbl_win_end
+    bl  copiar_a_buffer
+    mov x0, x13              // WINDOW_END
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir COUNT ---
+    adr x0, lbl_count
+    bl  copiar_a_buffer
+    mov x0, x27             // COUNT (N) 
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir SLOPE_X100 ---
+    adr x0, lbl_slope
+    bl  copiar_a_buffer
+    mov x0, x23             // SLOPE_X100
+    adr x1, buf_conv
+    bl  formatear_numero
+    adr x0, buf_conv
+    bl  copiar_a_buffer
+
+    // --- Escribir TREND ---
+    adr x0, lbl_trend
+    bl  copiar_a_buffer
+    mov x0, x25             // TREND
+    bl  copiar_a_buffer
+
+    // --- Escribir STATUS ---
+    adr x0, lbl_status
+    bl  copiar_a_buffer
+
+    b guardar_archivo
+
+error_datos:
+    mov x8, #64
+    mov x0, #1
+    adr x1, err_insuficiente
+    mov x2, len_err_insuficiente
+    svc #0
+    mov x0, #1
+    mov x8, #93
+    svc #0
+
+guardar_archivo:
+    // Calcular tamaño del texto armado
+    adr x1, buffer_salida
+    sub x26, x20, x1        
+
+    // Abrir archivo (resultado_regresion.txt)
+    mov x8, #56
+    mov x0, #-100
+    adr x1, nombre_salida
+    mov x2, #577            // O_CREAT | O_TRUNC | O_WRONLY    
+    mov x3, #0644
+    svc #0
+    mov x10, x0             
+
+    // Escribir todo el buffer formateado
+    mov x8, #64
+    mov x0, x10
+    adr x1, buffer_salida
+    mov x2, x26
+    svc #0
+
+    // Cerrar
+    mov x8, #57
+    mov x0, x10
+    svc #0
+
+    // Salir sin errores
+    mov x8, #93
+    mov x0, #0
+    svc #0
+
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS
 // ============================================================

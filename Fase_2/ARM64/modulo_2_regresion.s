@@ -163,6 +163,25 @@ fin_sumatorias:
     sdiv x23, x6, x7        // x23 = SLOPE_X100
     b evaluar_tendencia
 
+es_estable:
+    mov x23, #0
+
+evaluar_tendencia:
+    // Clasificar M*100: Ascendente (>0), Descendente (<0), Estable (==0)
+    cmp x23, #0
+    bgt set_ascending
+    blt set_descending
+    adr x25, trend_stab
+    b armar_salida
+
+set_ascending:
+    adr x25, trend_asc
+    b armar_salida
+
+set_descending:
+    adr x25, trend_desc
+    b armar_salida
+
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS
 // ============================================================

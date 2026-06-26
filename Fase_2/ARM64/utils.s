@@ -457,11 +457,12 @@ int_a_ascii_fin:
 ascii_a_int:
     mov x1, #0
     mov x3, #1            // signo: 1 = positivo, -1 = negativo
+    mov x4, #10
 
     ldrb w2, [x0]
     cmp w2, '-'
     bne ascii_a_int_loop
-    mov x3, #-1
+    mov x3, #-1          
     add x0, x0, #1
 
 ascii_a_int_loop:
@@ -470,8 +471,7 @@ ascii_a_int_loop:
     blt ascii_a_int_fin
     cmp w2, '9'
     bgt ascii_a_int_fin
-    mov x3, #10
-    mul x1, x1, x3
+    mul x1, x1, x4
     sub w2, w2, '0'
     add x1, x1, x2
     add x0, x0, #1

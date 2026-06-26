@@ -18,7 +18,7 @@
 .data
 
 nombre_salida:
-    .asciz "resultado_prediccion.txt"
+    .asciz "resultado_2_prediccion.txt"
 
 linea_module:
     .asciz "MODULE=PREDICTION\n"

@@ -105,6 +105,41 @@ llamar_utils:
     cmp x27, #2
     blt error_datos         // Requiere al menos 2 datos para una regresión
 
+    // --------------------------------------------------------
+    // 3. CÁLCULO DE SUMATORIAS PARA REGRESIÓN
+    // --------------------------------------------------------
+    // x19 = sum(X_i)
+    // x20 = sum(Y_i)
+    // x21 = sum(X_i * Y_i)
+    // x22 = sum(X_i * X_i)
+    // x23 = X_i (contador de 1 a N)
+    // x24 = Puntero al stack (inicia en x1 - 16, el primer elemento leído)
+    
+    mov x19, #0
+    mov x20, #0
+    mov x21, #0
+    mov x22, #0
+    mov x23, #1             // X_i inicia en 1
+    sub x24, x1, #16        // Apuntar al primer dato real
+
+loop_sumatorias:
+    cmp x23, x27
+    bgt fin_sumatorias      // Si X_i > N, terminar ciclo
+
+    ldr x25, [x24]          // x25 = Y_i
+
+    add x20, x20, x25       // sum(Y_i) += Y_i
+    add x19, x19, x23       // sum(X_i) += X_i
+
+    mul x26, x23, x25       // tmp = X_i * Y_i
+    add x21, x21, x26       // sum(X_i * Y_i) += tmp
+
+    mul x26, x23, x23       // tmp = X_i * X_i
+    add x22, x22, x26       // sum(X_i * X_i) += tmp
+
+    add x23, x23, #1        // X_i++
+    sub x24, x24, #16       // Retroceder puntero al siguiente elemento en orden de tiempo
+    b loop_sumatorias
 
 // ============================================================
 // FUNCIONES AUXILIARES INTERNAS

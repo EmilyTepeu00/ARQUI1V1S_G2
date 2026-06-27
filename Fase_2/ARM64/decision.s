@@ -3,11 +3,10 @@
 .data
 
 //Umbrales
-
 GAS_ALTO:       .quad 90
 GAS_ADVERTENCIA: .quad 80
 GAS_AMP_ALTA:   .quad 80
-SOIL_BAJO:      .quad 700
+SOIL_BAJO:      .quad 700   
 LUZ_BAJA:       .quad 1
 TEMP_ALTA:      .quad 32
 
@@ -559,4 +558,194 @@ prioridad_7:
 
 decision_fin:
     mov x30, x25
+    ret
+
+.global imprimir_respuesta
+imprimir_respuesta:
+    mov x26, x30
+
+    // --- ACTION= ---
+    ldr x0, =str_action
+    mov x1, #7
+    bl escribir_literal
+
+    ldr x0, =decision_action
+    ldr x0, [x0]
+    ldr x1, =tabla_accion
+    bl escribir_desde_tabla
+
+    // --- ;TARGET= ---
+    ldr x0, =str_target
+    mov x1, #8
+    bl escribir_literal
+
+    ldr x0, =decision_target
+    ldr x0, [x0]
+    ldr x1, =tabla_target
+    bl escribir_desde_tabla
+
+    // --- ";RISK= ---
+    ldr x0, =str_risk
+    mov x1, #6
+    bl escribir_literal
+
+    ldr x0, =decision_risk
+    ldr x0, [x0]
+    add x0, x0, #1
+    ldr x1, =tabla_risk
+    bl escribir_desde_tabla
+
+    // --- ;REASON= ---
+    ldr x0, =str_reason
+    mov x1, #8
+    bl escribir_literal
+
+    ldr x0, =decision_reason
+    ldr x0, [x0]
+    ldr x1, =tabla_reason
+    bl escribir_desde_tabla
+
+    // --- ;VALUE= + entero ---
+    ldr x0, =str_value
+    mov x1, #7
+    bl escribir_literal
+
+    ldr x0, =decision_value
+    ldr x0, [x0]
+    bl escribir_entero
+
+    // --- ;INDICATOR= + entero ---
+    ldr x0, =str_indicator
+    mov x1, #11
+    bl escribir_literal
+
+    ldr x0, =decision_indicator
+    ldr x0, [x0]
+    bl escribir_entero
+
+    // --- ;STATUS=OK\n ---
+    ldr x0, =str_status_ok
+    mov x1, #11
+    bl escribir_literal
+
+    mov x30, x26
+    ret
+
+escribir_literal:
+    mov x2, x1
+    mov x1, x0
+    mov x0, #1
+    mov x8, #64
+    svc #0
+    ret
+
+
+escribir_desde_tabla:
+    mov x27, x30
+    sub x0, x0, #1                
+    lsl x0, x0, #3                   
+    add x0, x1, x0                    
+    ldr x0, [x0]                     
+
+    mov x9, x0                          
+    bl contar_longitud                 
+    mov x2, x1
+    mov x1, x9
+    mov x0, #1
+    mov x8, #64
+    svc #0
+
+    mov x30, x27
+    ret
+
+contar_longitud:
+    mov x1, #0
+contar_longitud_loop:
+    ldrb w2, [x0, x1]
+    cbz w2, contar_longitud_fin
+    add x1, x1, #1
+    b contar_longitud_loop
+contar_longitud_fin:
+    ret
+
+escribir_entero:
+    mov x28, x30               
+    mov x29, x0                   
+
+    cmp x29, #0
+    bge escribir_entero_positivo
+
+    ldr x1, =signo_negativo
+    mov x2, #1
+    mov x0, #1
+    mov x8, #64
+    svc #0
+
+    neg x29, x29                  
+
+escribir_entero_positivo:
+    mov x0, x29
+    ldr x1, =out_buffer
+    bl int_a_ascii               
+
+    ldr x0, =out_buffer
+    bl contar_longitud            
+
+    mov x2, x1
+    ldr x1, =out_buffer
+    mov x0, #1
+    mov x8, #64
+    svc #0
+
+    mov x30, x28
+    ret
+
+.global imprimir_error_estructurado
+imprimir_error_estructurado:
+    mov x26, x30               
+    mov x24, x0                
+    mov x25, x1            
+
+    // --- STATUS=ERROR\n ---
+    ldr x0, =str_status_error
+    mov x1, #13
+    bl escribir_literal
+
+    // --- ERROR= + texto ---
+    ldr x0, =str_error_eq
+    mov x1, #6
+    bl escribir_literal
+
+    mov x0, x24
+    bl contar_longitud
+    mov x2, x1
+    mov x1, x24
+    mov x0, #1
+    mov x8, #64
+    svc #0
+
+    // --- \n ---
+    ldr x0, =newline
+    mov x1, #1
+    bl escribir_literal
+
+    // --- DETAIL= + texto ---
+    ldr x0, =str_detail_eq
+    mov x1, #7
+    bl escribir_literal
+
+    mov x0, x25
+    bl contar_longitud
+    mov x2, x1
+    mov x1, x25
+    mov x0, #1
+    mov x8, #64
+    svc #0
+
+    // --- \n ---
+    ldr x0, =newline
+    mov x1, #1
+    bl escribir_literal
+
+    mov x30, x26                
     ret

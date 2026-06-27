@@ -10,15 +10,18 @@ RESULTADOS_DIR = ARM64_DIR
 CSV_BACKEND    = os.path.join(os.path.dirname(__file__), "lecturas.csv")
 CSV_ARM64      = os.path.join(ARM64_DIR, "lecturas.csv")
 
-# Cabecera: ID,TEMP,HUM_AIRE,HUM_SUELO_1,HUM_SUELO_2,LUZ,GAS,RIEGO_1,RIEGO_2
-#           0   1     2         3            4          5    6     7       8
+# Cabecera: TEMP, HUM_AIRE, HUM_SUELO_1, HUM_SUELO_2, LUZ, GAS, RIEGO_1, RIEGO_2
+#            1       2          3            4         5    6      7        8
 VARIABLES = {
-    "TEMP":        2,
-    "HUM_AIRE":    3,
-    "HUM_SUELO_1": 4,
-    "HUM_SUELO_2": 5,
-    "LUZ":         6,
-    "GAS":         7,
+    "TEMP":        1,
+    "HUM_AIRE":    2,
+    "HUM_SUELO_1": 3,
+    "HUM_SUELO_2": 4,
+    "LUZ":         5,
+    "GAS":         6,
+
+    "SOIL1":       3,
+    "SOIL2":       4,
 }
 
 MODULOS = [
@@ -48,7 +51,7 @@ MODULOS = [
         "fuente":  "modulo_4_prediccion.s",
         "binario": "modulo_4_prediccion",
         "salida":  "resultado_prediccion.txt",
-        "tipo":    "PREDICTION",
+        "tipo":    "SIMPLE_PREDICTION",
     },
     {
         "nombre":  "modulo_5_tendecia",
@@ -56,6 +59,41 @@ MODULOS = [
         "binario": "modulo_5_tendecia",
         "salida":  "resultado_tendencia.txt",
         "tipo":    "ADVANCED_TREND",
+    },
+    {
+        "nombre":  "modulo_1_rmse",
+        "fuente":  "modulo_1_rmse.s",
+        "binario": "modulo_1_rmse",
+        "salida":  "resultado_rmse.txt",
+        "tipo":    "RMSE",
+    },
+    {
+        "nombre":  "modulo_2_regresion",
+        "fuente":  "modulo_2_regresion.s",
+        "binario": "modulo_2_regresion",
+        "salida":  "modulo_2_regresion.txt",
+        "tipo":    "LINEAR_REGRESSION",
+    },
+    {
+        "nombre":  "modulo_3_prediccion",
+        "fuente":  "modulo_3_prediccion.s",
+        "binario": "modulo_3_prediccion",
+        "salida":  "resultado_prediccion_regresion.txt",
+        "tipo":    "PREDICTION_REGRESSION",
+    },
+    {
+        "nombre":  "modulo_4_integral_error",
+        "fuente":  "modulo_4_integral_error.s",
+        "binario": "modulo_4_integral_error",
+        "salida":  "resultado_integral.txt",
+        "tipo":    "ERROR_INTEGRAL",
+    },
+    {
+        "nombre":  "modulo_5_derivada_local",
+        "fuente":  "modulo_5_derivada_local.s",
+        "binario": "modulo_5_derivada_local",
+        "salida":  "resultado_derivada.txt",
+        "tipo":    "LOCAL_DERIVATIVE",
     },
 ]
 
@@ -122,7 +160,7 @@ def ejecutar_modulos(col_index):
             print(f"[ARM64] Binario {m['binario']} no existe — saltando")
             continue
         try:
-            # Ejecutar con: binario archivo inicio fin columna (orden del enunciado 4.14)
+            # binario archivo inicio fin columna 
             r = subprocess.run(
                 [bin_, archivo_str, inicio_str, fin_str, col_str],
                 capture_output=True, text=True, cwd=ARM64_DIR, timeout=15
@@ -140,7 +178,7 @@ def ejecutar_modulos(col_index):
             print(f"[ARM64] Timeout en {m['nombre']}")
 
 
-# EJECUTAR LOS MODULOS CON RANGO ESPECIFICO
+# Ejecutar los modulos con rango especifico
 def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
     print(f"[ARM64] Ejecutando modulos con columna={col_index}, rango={linea_inicial}-{linea_final}...")
 
@@ -149,13 +187,15 @@ def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
     fin_str = str(linea_final)
     archivo_str = "lecturas.csv"
 
+    errores = []
+
     for m in MODULOS:
         bin_ = os.path.join(ARM64_DIR, m["binario"])
         if not os.path.exists(bin_):
             print(f"[ARM64] Binario {m['binario']} no existe — saltando")
             continue
         try:
-            # Ejecutar con: binario archivo inicio fin columna (orden del enunciado 4.14)
+            # binario archivo inicio fin columna 
             r = subprocess.run(
                 [bin_, archivo_str, inicio_str, fin_str, col_str],
                 capture_output=True, text=True, cwd=ARM64_DIR, timeout=15
@@ -165,12 +205,33 @@ def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
                 if r.stdout:
                     print(r.stdout)
             else:
-                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): stderr={r.stderr!r} stdout={r.stdout!r}")
+                salida = r.stdout or r.stderr or ""
+                detalle_error = _parsear_error_estructurado(salida)
+                detalle_error["modulo"] = m["nombre"]
+                errores.append(detalle_error)
+                print(f"[ARM64] {m['nombre']} error (rc={r.returncode}): {detalle_error}")
         except FileNotFoundError:
             print(f"[ARM64] Binario no encontrado: {bin_}")
+            errores.append({"modulo": m["nombre"], "error": "BINARY_NOT_FOUND", "detail": bin_})
             break
         except subprocess.TimeoutExpired:
             print(f"[ARM64] Timeout en {m['nombre']}")
+            errores.append({"modulo": m["nombre"], "error": "TIMEOUT", "detail": "El modulo no respondio a tiempo"})
+
+    return errores
+
+def _parsear_error_estructurado(salida):
+    """Convierte el bloque STATUS=ERROR/ERROR=.../DETAIL=... (seccion
+    4.16) que un modulo imprime por stdout/stderr en un dict simple
+    {"error": ..., "detail": ...} para devolverlo al dashboard."""
+    resultado = {"error": "UNKNOWN_ERROR", "detail": salida.strip()[:200] or "Sin detalle"}
+    for linea in salida.splitlines():
+        linea = linea.strip()
+        if linea.startswith("ERROR="):
+            resultado["error"] = linea.split("=", 1)[1].strip()
+        elif linea.startswith("DETAIL="):
+            resultado["detail"] = linea.split("=", 1)[1].strip()
+    return resultado
 
 
 def parsear_txt(ruta):

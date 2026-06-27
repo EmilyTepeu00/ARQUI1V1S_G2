@@ -330,7 +330,7 @@ conv_positivo:
 
 /*  Ejecutar para pruebas:
     make modulo_4_prediccion
-    qemu-aarch64 ./modulo_4_prediccion lecturas.csv 1 25 3
+    qemu-aarch64 ./modulo_4_prediccion lecturas.csv 1 25 2
     cat resultado_prediccion.txt
 */
 

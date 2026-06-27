@@ -4,9 +4,10 @@
 
 //Umbrales
 
-GAS_ALTO:       .quad 70
-GAS_AMP_ALTA:   .quad 25
-SOIL_BAJO:      .quad 40
+GAS_ALTO:       .quad 90
+GAS_ADVERTENCIA: .quad 80
+GAS_AMP_ALTA:   .quad 80
+SOIL_BAJO:      .quad 700
 LUZ_BAJA:       .quad 1
 TEMP_ALTA:      .quad 32
 
@@ -44,6 +45,7 @@ TEMP_ALTA:      .quad 32
 .equ REASON_TEMP_HIGH_ASC,      5
 .equ REASON_ESTADO_NORMAL,      6
 .equ REASON_SIN_ACCION,         7
+.equ REASON_GAS_ADVERTENCIA,    8
 
 // --- Textos de salida ---
 str_action:    .ascii "ACTION="
@@ -123,6 +125,7 @@ txt_reason_luz:            .asciz "LUZ_LOW_AND_DESCENDING"
 txt_reason_temp:            .asciz "TEMP_HIGH_AND_ASCENDING"
 txt_reason_normal:           .asciz "ESTADO_NORMAL_OBSERVADO"
 txt_reason_sin_accion:        .asciz "SIN_CONDICION_APLICABLE"
+txt_reason_gas_advertencia:    .asciz "GAS_MODERADO_ADVERTENCIA"
 
 .align 3
 tabla_reason:
@@ -133,3 +136,427 @@ tabla_reason:
     .quad txt_reason_temp            // REASON_TEMP_HIGH_ASC  = 5
     .quad txt_reason_normal           // REASON_ESTADO_NORMAL  = 6
     .quad txt_reason_sin_accion        // REASON_SIN_ACCION     = 7
+    .quad txt_reason_gas_advertencia    // REASON_GAS_ADVERTENCIA = 8
+
+.bss
+// --- Resultados de indicadores ---
+promedio_temp:    .skip 8
+tendencia_temp:   .skip 8
+
+promedio_hum:     .skip 8
+amplitud_hum:     .skip 8
+
+promedio_soil1:   .skip 8
+tendencia_soil1:  .skip 8
+
+promedio_soil2:   .skip 8
+tendencia_soil2:  .skip 8
+
+promedio_luz:     .skip 8
+tendencia_luz:    .skip 8
+
+promedio_gas:     .skip 8
+amplitud_gas:     .skip 8
+
+// --- Resultado de la decision ---
+decision_action:    .skip 8
+decision_target:    .skip 8
+decision_value:     .skip 8
+decision_indicator: .skip 8
+decision_risk:       .skip 8
+decision_reason:     .skip 8
+
+out_buffer: .skip 256
+
+.text
+
+.global calcular_indicadores
+calcular_indicadores:
+    mov x26, x30
+
+    // --- TEMP: promedio + tendencia ---
+    ldr x0, =temp_buffer
+    ldr x1, =temp_count
+    ldr x1, [x1]
+    bl calcular_promedio
+    ldr x2, =promedio_temp
+    str x0, [x2]
+
+    ldr x0, =temp_buffer
+    ldr x1, =temp_count
+    ldr x1, [x1]
+    bl calcular_tendencia
+    ldr x2, =tendencia_temp
+    str x0, [x2]
+
+    // --- HUM_AIRE: promedio + amplitud ---
+    ldr x0, =hum_buffer
+    ldr x1, =hum_count
+    ldr x1, [x1]
+    bl calcular_promedio
+    ldr x2, =promedio_hum
+    str x0, [x2]
+
+    ldr x0, =hum_buffer
+    ldr x1, =hum_count
+    ldr x1, [x1]
+    bl calcular_amplitud
+    ldr x2, =amplitud_hum
+    str x0, [x2]
+
+    // --- SOIL1: promedio + tendencia ---
+    ldr x0, =soil1_buffer
+    ldr x1, =soil1_count
+    ldr x1, [x1]
+    bl calcular_promedio
+    ldr x2, =promedio_soil1
+    str x0, [x2]
+
+    ldr x0, =soil1_buffer
+    ldr x1, =soil1_count
+    ldr x1, [x1]
+    bl calcular_tendencia
+    ldr x2, =tendencia_soil1
+    str x0, [x2]
+
+    // --- SOIL2: promedio + tendencia ---
+    ldr x0, =soil2_buffer
+    ldr x1, =soil2_count
+    ldr x1, [x1]
+    bl calcular_promedio
+    ldr x2, =promedio_soil2
+    str x0, [x2]
+
+    ldr x0, =soil2_buffer
+    ldr x1, =soil2_count
+    ldr x1, [x1]
+    bl calcular_tendencia
+    ldr x2, =tendencia_soil2
+    str x0, [x2]
+
+    // --- LUZ: promedio + tendencia ---
+    ldr x0, =luz_buffer
+    ldr x1, =luz_count
+    ldr x1, [x1]
+    bl calcular_promedio
+    ldr x2, =promedio_luz
+    str x0, [x2]
+
+    ldr x0, =luz_buffer
+    ldr x1, =luz_count
+    ldr x1, [x1]
+    bl calcular_tendencia
+    ldr x2, =tendencia_luz
+    str x0, [x2]
+
+    // --- GAS: promedio + amplitud ---
+    ldr x0, =gas_buffer
+    ldr x1, =gas_count
+    ldr x1, [x1]
+    bl calcular_promedio
+    ldr x2, =promedio_gas
+    str x0, [x2]
+
+    ldr x0, =gas_buffer
+    ldr x1, =gas_count
+    ldr x1, [x1]
+    bl calcular_amplitud
+    ldr x2, =amplitud_gas
+    str x0, [x2]
+
+    mov x30, x26
+    ret
+
+calcular_amplitud:
+    cbz x1, amplitud_vacia
+
+    lsl x4, xzr, #3            // x4 = 0 (offset del primer elemento)
+    add x5, x0, x4
+    ldr x6, [x5]                 // x6 = max (inicia con el primer valor)
+    mov x7, x6                    // x7 = min (inicia igual)
+
+    mov x3, #1                    // x3 = indice i, ya tomamos i=0 arriba
+
+amplitud_loop:
+    cmp x3, x1
+    bge fin_amplitud
+
+    lsl x4, x3, #3
+    add x5, x0, x4
+    ldr x8, [x5]                  // x8 = X_i
+
+    cmp x8, x6
+    ble amplitud_no_max
+    mov x6, x8                      // Nuevo maximo
+amplitud_no_max:
+    cmp x8, x7
+    bge amplitud_no_min
+    mov x7, x8                      // Nuevo minimo
+amplitud_no_min:
+
+    add x3, x3, #1
+    b amplitud_loop
+
+fin_amplitud:
+    sub x0, x6, x7
+    ret
+
+amplitud_vacia:
+    mov x0, #0
+    ret
+
+.global decidir_accion
+decidir_accion:
+    mov x25, x30
+    // --- Prioridad 1: GAS critico (alto o amplitud alta) - ALARM_ON ---
+    ldr x0, =promedio_gas
+    ldr x0, [x0]
+    ldr x1, =GAS_ALTO
+    ldr x1, [x1]
+    cmp x0, x1
+    bgt prioridad_1_cumple
+
+    ldr x0, =amplitud_gas
+    ldr x0, [x0]
+    ldr x1, =GAS_AMP_ALTA
+    ldr x1, [x1]
+    cmp x0, x1
+    bgt prioridad_1_cumple
+
+    // --- Prioridad 1b: GAS en nivel de advertencia (moderado) - LED_YELLOW ---
+    ldr x0, =promedio_gas
+    ldr x0, [x0]
+    ldr x1, =GAS_ADVERTENCIA
+    ldr x1, [x1]
+    cmp x0, x1
+    bgt prioridad_1_advertencia
+    b prioridad_2
+
+prioridad_1_advertencia:
+    ldr x0, =decision_action
+    mov x1, #ACT_LED_YELLOW
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_GAS
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_MEDIUM
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_GAS_ADVERTENCIA
+    str x1, [x0]
+    ldr x0, =lectura_gas
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =promedio_gas
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_1_cumple:
+    ldr x0, =decision_action
+    mov x1, #ACT_ALARM_ON
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_GAS
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_CRITICAL
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_GAS_ALTO
+    str x1, [x0]
+    ldr x0, =lectura_gas
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =promedio_gas
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_2:
+    // --- Prioridad 2: SOIL1 seco (no humedeciendose claramente) - RIEGO_1_ON ---
+    ldr x0, =promedio_soil1
+    ldr x0, [x0]
+    ldr x1, =SOIL_BAJO
+    ldr x1, [x1]
+    cmp x0, x1
+    ble prioridad_3
+
+    ldr x0, =decision_action
+    mov x1, #ACT_RIEGO_1_ON
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_SOIL1
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_HIGH
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_SOIL1_LOW_DESC
+    str x1, [x0]
+    ldr x0, =lectura_soil1
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =tendencia_soil1
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_3:
+    // --- Prioridad 3: SOIL2 seco (no humedeciendose claramente) - RIEGO_2_ON ---
+    ldr x0, =promedio_soil2
+    ldr x0, [x0]
+    ldr x1, =SOIL_BAJO
+    ldr x1, [x1]
+    cmp x0, x1
+    ble prioridad_4
+
+    ldr x0, =decision_action
+    mov x1, #ACT_RIEGO_2_ON
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_SOIL2
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_HIGH
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_SOIL2_LOW_DESC
+    str x1, [x0]
+    ldr x0, =lectura_soil2
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =tendencia_soil2
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_4:
+    // --- Prioridad 4: LUZ baja (mayoria de lecturas recientes en BAJO=0) - LIGHT_ON ---
+    ldr x0, =promedio_luz
+    ldr x0, [x0]
+    ldr x1, =LUZ_BAJA
+    ldr x1, [x1]
+    cmp x0, x1
+    bge prioridad_5
+
+    ldr x0, =decision_action
+    mov x1, #ACT_LIGHT_ON
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_LUZ
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_MEDIUM
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_LUZ_LOW_DESC
+    str x1, [x0]
+    ldr x0, =lectura_luz
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =tendencia_luz
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_5:
+    // --- Prioridad 5: TEMP alta y tendencia ascendente - FAN_ON ---
+    ldr x0, =promedio_temp
+    ldr x0, [x0]
+    ldr x1, =TEMP_ALTA
+    ldr x1, [x1]
+    cmp x0, x1
+    ble prioridad_6
+
+    ldr x0, =tendencia_temp
+    ldr x0, [x0]
+    cmp x0, #0
+    ble prioridad_6
+
+    ldr x0, =decision_action
+    mov x1, #ACT_FAN_ON
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_TEMP
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_MEDIUM
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_TEMP_HIGH_ASC
+    str x1, [x0]
+    ldr x0, =lectura_temp
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =tendencia_temp
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_6:
+    // --- Prioridad 6: estado general sin condicion critica - LED_GREEN ---
+    ldr x0, =temp_count
+    ldr x0, [x0]
+    cbz x0, prioridad_7
+
+    ldr x0, =decision_action
+    mov x1, #ACT_LED_GREEN
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_GENERAL
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_LOW
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_ESTADO_NORMAL
+    str x1, [x0]
+    ldr x0, =lectura_temp
+    ldr x0, [x0]
+    ldr x1, =decision_value
+    str x0, [x1]
+    ldr x0, =promedio_temp
+    ldr x0, [x0]
+    ldr x1, =decision_indicator
+    str x0, [x1]
+    b decision_fin
+
+prioridad_7:
+    // --- Prioridad 7: ninguna condicion aplica - NO_ACTION ---
+    ldr x0, =decision_action
+    mov x1, #ACT_NO_ACTION
+    str x1, [x0]
+    ldr x0, =decision_target
+    mov x1, #TGT_GENERAL
+    str x1, [x0]
+    ldr x0, =decision_risk
+    mov x1, #RISK_LOW
+    str x1, [x0]
+    ldr x0, =decision_reason
+    mov x1, #REASON_SIN_ACCION
+    str x1, [x0]
+    ldr x0, =decision_value
+    mov x1, #0
+    str x1, [x0]
+    ldr x0, =decision_indicator
+    mov x1, #0
+    str x1, [x0]
+    b decision_fin
+
+decision_fin:
+    mov x30, x25
+    ret

@@ -7,7 +7,7 @@ from paho.mqtt import client as mqtt_client
 import config
 import database as db
 import motor_runner
-from state import procesar_comando, aplicar_logica_automatica, clasificar_suelo, clasificar_gas, obtener_estado
+from state import procesar_comando, clasificar_suelo, clasificar_gas, obtener_estado
 
 _cliente        = None
 _conectado      = False
@@ -39,7 +39,7 @@ def on_message(client, userdata, msg):
         topic   = msg.topic
 
         if topic in (config.TOPIC_CONTROL_REMOTO, config.TOPIC_CONTROL_MANUAL):
-             if topic == config.TOPIC_CONTROL_REMOTO and payload.get("auto"):
+            if topic == config.TOPIC_CONTROL_REMOTO and payload.get("auto"):
                 # Comando generado por la decision automatica de ARM64
                 origen = "ARM64_AUTO"
             else:
@@ -87,6 +87,64 @@ def _valor_a_porcentaje_humedad(valor_crudo):
     return round(max(0.0, min(100.0, pct)), 1)
 
 
+def _publicar_accion_fisica(accion, riesgo):
+    comandos = {
+        "RIEGO_1_ON":  [("RIEGO_AREA1", "ON")],
+        "RIEGO_2_ON":  [("RIEGO_AREA2", "ON")],
+        "FAN_ON":      [("VENTILADOR", "ON")],
+        "LIGHT_ON":    [("LUCES", "ON")],
+        "ALARM_ON":    [("ALARMA", "ON"), ("VENTILADOR", "ON")],
+        "LED_GREEN":   [("VENTILADOR", "OFF"), ("LUCES", "OFF"), ("ALARMA", "OFF")],
+        "LED_YELLOW":  [],
+        "LED_RED":     [("ALARMA", "ON")],
+        "NO_ACTION":   [],
+    }
+
+    # Estos comandos vienen de la decision de ARM64
+    for accion_gpio, valor in comandos.get(accion, []):
+        publicar_comando_remoto(accion_gpio, valor, auto=True)
+
+    if riesgo:
+        publicar_comando_remoto("LED_ESTADO", riesgo, auto=True)
+
+
+def _accion_arm64_a_estado(resultado_motor, modo_actual):
+    if resultado_motor.get("status") != "OK":
+        return None
+
+    accion = resultado_motor.get("accion", "NO_ACTION")
+    if not resultado_motor.get("accion_valida", False):
+        return None
+
+    estado = {
+        "riego":      "RIEGO_OFF",
+        "ventilador": "VENTILACION_OFF",
+        "luces":      "OFF",
+        "alarma":     "OFF",
+        "modo":       modo_actual,
+        "global":     "NORMAL",
+    }
+
+    if accion == "RIEGO_1_ON":
+        estado["riego"] = "RIEGO_AREA1_ON"
+    elif accion == "RIEGO_2_ON":
+        estado["riego"] = "RIEGO_AREA2_ON"
+    elif accion == "FAN_ON":
+        estado["ventilador"] = "VENTILACION_ON"
+    elif accion == "LIGHT_ON":
+        estado["luces"] = "ON"
+    elif accion == "ALARM_ON":
+        estado["alarma"] = "ON"
+        estado["ventilador"] = "VENTILACION_EMERGENCIA"
+        estado["global"] = "EMERGENCIA"
+    elif accion == "LED_YELLOW":
+        estado["global"] = "ADVERTENCIA"
+    elif accion == "LED_RED":
+        estado["global"] = "EMERGENCIA"
+
+    return estado
+
+
 def _guardar_lectura_completa(l):
     ts            = l.get("ts", datetime.now().isoformat())
     estado_suelo1 = clasificar_suelo(l["hum_suelo1"])
@@ -98,22 +156,41 @@ def _guardar_lectura_completa(l):
     suelo2_pct    = _valor_a_porcentaje_humedad(suelo2_val)
 
     lecturas = {
-        "temperatura":   l["temperatura"],
-        "hum_aire":      l["hum_aire"],
-        "hum_suelo1":    l["hum_suelo1"],
-        "hum_suelo2":    l["hum_suelo2"],
-        "luz":           l["luz"],
-        "gas":           l["gas"],
-        "estado_suelo1": estado_suelo1,
-        "estado_suelo2": estado_suelo2,
-        "estado_gas":    estado_gas,
+        "temperatura":    l["temperatura"],
+        "hum_aire":       l["hum_aire"],
+        "hum_suelo1":     l["hum_suelo1"],
+        "hum_suelo2":     l["hum_suelo2"],
+        "hum_suelo1_val": suelo1_val,
+        "hum_suelo2_val": suelo2_val,
+        "luz":            l["luz"],
+        "gas":            l["gas"],
+        "estado_suelo1":  estado_suelo1,
+        "estado_suelo2":  estado_suelo2,
+        "estado_gas":     estado_gas,
     }
 
-    aplicar_logica_automatica(lecturas)
+    modo_actual = obtener_estado().get("modo", "AUTOMATICO")
+
+    if modo_actual == "AUTOMATICO":
+        resultado_motor = motor_runner.procesar_lectura_con_motor(lecturas, modo=0)
+        nuevo_estado = _accion_arm64_a_estado(resultado_motor, modo_actual)
+        if nuevo_estado is not None:
+            from state import estado_sistema, _lock as _state_lock
+            with _state_lock:
+                estado_sistema.update(nuevo_estado)
+            db.actualizar_estado_global(estado_sistema.copy())
+
+            _publicar_accion_fisica(
+                resultado_motor.get("accion", "NO_ACTION"),
+                resultado_motor.get("riesgo", ""),
+            )
+        else:
+            print("[MOTOR] Respuesta invalida o ERROR -- se mantiene el ultimo estado conocido")
+
     estado = obtener_estado()
 
     print(f"[RASP] Temp={l['temperatura']}C Suelo1={l['hum_suelo1']}({suelo1_val}) Gas={l['gas']}")
-    print(f"       Estado={estado['global']} Riego={estado['riego']}")
+    print(f"       Estado={estado['global']} Riego={estado['riego']} (modo={modo_actual})")
 
     db.guardar(config.COL_SENSOR_READINGS, {
         "timestamp":   ts,
@@ -150,9 +227,9 @@ def _guardar_lectura_completa(l):
         })
 
 
-def publicar_comando_remoto(accion, valor):
+def publicar_comando_remoto(accion, valor, auto=False):
     _publicar(config.TOPIC_CONTROL_REMOTO, {
-        "accion": accion, "valor": valor,
+        "accion": accion, "valor": valor, "auto": auto,
         "timestamp": datetime.now().isoformat()
     })
 

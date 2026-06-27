@@ -6,6 +6,7 @@ from paho.mqtt import client as mqtt_client
 
 import config
 import database as db
+import motor_runner
 from state import procesar_comando, aplicar_logica_automatica, clasificar_suelo, clasificar_gas, obtener_estado
 
 _cliente        = None
@@ -38,7 +39,11 @@ def on_message(client, userdata, msg):
         topic   = msg.topic
 
         if topic in (config.TOPIC_CONTROL_REMOTO, config.TOPIC_CONTROL_MANUAL):
-            origen = "REMOTO" if topic == config.TOPIC_CONTROL_REMOTO else "MANUAL"
+             if topic == config.TOPIC_CONTROL_REMOTO and payload.get("auto"):
+                # Comando generado por la decision automatica de ARM64
+                origen = "ARM64_AUTO"
+            else:
+                origen = "REMOTO" if topic == config.TOPIC_CONTROL_REMOTO else "MANUAL"
             procesar_comando(payload, origen)
             return
 

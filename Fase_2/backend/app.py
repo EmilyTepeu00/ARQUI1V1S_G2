@@ -21,7 +21,15 @@ app = Flask(
     static_folder=os.path.join("..", "dashboard", "static")
 )
 app.secret_key = config.SECRET_KEY
-CORS(app)
+
+# CORS actualizado para ngrok
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "ngrok-skip-browser-warning"]
+    }
+})
 
 @app.route("/login", methods=["GET", "POST"])
 def login():

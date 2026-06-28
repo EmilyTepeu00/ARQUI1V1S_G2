@@ -1,5 +1,24 @@
 let charts = {};
 
+// Función helper para fetch con header de ngrok
+async function fetchNgrok(url, options = {}) {
+    const headers = {
+        'ngrok-skip-browser-warning': 'true',
+        ...(options.headers || {})
+    };
+    
+    if (options.body && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+    
+    const response = await fetch(url, {
+        ...options,
+        headers: headers
+    });
+    
+    return response;
+}
+
 function mkChart(id, label, color) {
     const ctx = document.getElementById(id).getContext('2d');
     return new Chart(ctx, {
@@ -52,7 +71,7 @@ function actualizarBarraProgreso(id, valor) {
 
 async function actualizarEstado() {
     try {
-        const data = await fetch('/api/estado').then(r => r.json());
+        const data = await fetchNgrok('/api/estado').then(r => r.json());
 
         const card = document.getElementById('statusCard');
         const el   = document.getElementById('estadoGlobal');
@@ -88,7 +107,7 @@ async function actualizarEstado() {
 
 async function actualizarGraficas() {
     try {
-        const h = await fetch('/api/historial?limite=30').then(r => r.json());
+        const h = await fetchNgrok('/api/historial?limite=30').then(r => r.json());
         if (!h.labels || h.labels.length === 0) return;
         updateChart(charts.temp,   h.labels, h.temperatura);
         updateChart(charts.hum,    h.labels, h.humedad);
@@ -101,8 +120,8 @@ async function actualizarGraficas() {
 
 async function actualizarHistorial() {
     try {
-        const eventos  = await fetch('/api/eventos?n=10').then(r => r.json());
-        const comandos = await fetch('/api/comandos?n=10').then(r => r.json());
+        const eventos  = await fetchNgrok('/api/eventos?n=10').then(r => r.json());
+        const comandos = await fetchNgrok('/api/comandos?n=10').then(r => r.json());
 
         const eEl = document.getElementById('eventosList');
         if (eventos.length === 0) {
@@ -132,7 +151,7 @@ async function actualizarHistorial() {
 // DECISIONES DEL MOTOR ARM64 EN VIVO
 async function actualizarDecisiones() {
     try {
-        const res = await fetch('/api/decisiones?n=10');
+        const res = await fetchNgrok('/api/decisiones?n=10');
         const decisiones = await res.json();
 
         const dEl = document.getElementById('decisionesList');
@@ -160,7 +179,7 @@ async function actualizarDecisiones() {
 
 async function cmd(accion, valor) {
     try {
-        const res = await fetch('/api/comando', {
+        const res = await fetchNgrok('/api/comando', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({accion, valor})
@@ -224,7 +243,7 @@ async function ejecutarAnalisisHistorico() {
     }
 
     try {
-        const res = await fetch('/api/analisis/historico', {
+        const res = await fetchNgrok('/api/analisis/historico', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

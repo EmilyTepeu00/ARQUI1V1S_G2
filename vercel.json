@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "Fase_2/dashboard/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/Fase_2/dashboard/templates/index.html"
+    }
+  ]
+}

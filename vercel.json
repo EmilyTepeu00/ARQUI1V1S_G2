@@ -12,11 +12,11 @@
   "routes": [
     {
       "src": "/",
-      "dest": "/Fase_2/dashboard/templates/index.html"
+      "dest": "/Fase_2/dashboard/templates/login.html"
     },
     {
-      "src": "/login",
-      "dest": "/Fase_2/dashboard/templates/login.html"
+      "src": "/index.html",
+      "dest": "/Fase_2/dashboard/templates/index.html"
     },
     {
       "src": "/static/(.*)",

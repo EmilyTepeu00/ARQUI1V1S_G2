@@ -8,6 +8,7 @@ import database as db
 import csv_manager
 import mqtt_client as mqtt
 import arm64_runner
+import motor_runner
 from state import procesar_comando, obtener_estado
 
 # LOGIN
@@ -185,10 +186,7 @@ def api_arm64_ejecutar():
     })
 
 
-# ANALISIS HISTORICO ARM64 CON RANGO
-# linea_inicial, linea_final, columna
-# El CSV se genera en este momento con las 'linea_final' lecturas
-# mas recientes de Mongo (no existe un CSV previo que validar).
+# Analisis hisotrico ARM64 con rango
 @app.route("/api/analisis/historico", methods=["POST"])
 def api_analisis_historico():
     try:
@@ -226,7 +224,6 @@ def api_analisis_historico():
                 "detail": f"Columna '{columna}' no valida. Opciones: {list(arm64_runner.VARIABLES.keys())}"
             }), 400
 
-        # Generar el CSV con las 'linea_final' lecturas mas recientes de Mongo.
         # Si Mongo no tiene suficientes, esto lanza DatosInsuficientesError.
         try:
             csv_manager.generar_csv_para_rango(linea_final)
@@ -248,15 +245,30 @@ def api_analisis_historico():
             col_index = arm64_runner.VARIABLES.get(columna, 1)
 
             arm64_runner.compilar_modulos()
-            arm64_runner.ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final)
+            errores_modulos = arm64_runner.ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final)
 
             resultados = arm64_runner.leer_resultados(columna)
+
+            arm64_runner.guardar_resultados_historicos(
+                resultados, errores_modulos, columna, linea_inicial, linea_final
+            )
+
+            if errores_modulos and not resultados:
+                primer_error = errores_modulos[0]
+                resultado = {
+                    "status": "ERROR",
+                    "error": primer_error.get("error", "MODULE_ERROR"),
+                    "detail": f"[{primer_error.get('modulo','?')}] {primer_error.get('detail','')}",
+                }
+                return
+
             resultado = {
                 "status": "OK",
                 "resultados": resultados,
                 "columna": columna,
                 "linea_inicial": linea_inicial,
-                "linea_final": linea_final
+                "linea_final": linea_final,
+                "errores_parciales": errores_modulos,  # modulos que fallaron aunque otros si dieron resultado
             }
 
         # Ejecutar en hilo separado para no bloquear
@@ -292,6 +304,10 @@ def iniciar_servicios():
 
     mqtt.iniciar()
 
+    # Componente A: lanzar el motor ARM64 en vivo
+    if not motor_runner.iniciar_motor():
+        print("[WARN] No se pudo iniciar el motor ARM64 en vivo")
+
     print("[INFO] Esperando datos de la Raspberry Pi por MQTT...")
     print("[INFO] El CSV se genera bajo demanda desde /api/analisis/historico")
     print(f"\n[BACKEND] http://localhost:{config.FLASK_PORT}\n")
@@ -300,10 +316,13 @@ def iniciar_servicios():
 @app.route("/api/decisiones")
 def api_decisiones():
     n = request.args.get("n", 10, type=int)
-    return jsonify(db.obtener_ultimos("arm64_decisiones", n))
+    return jsonify(db.obtener_ultimos(config.COL_ARM64_RESULTS, n, filtro={"source": "live_engine"}))
 
 
 if __name__ == "__main__":
+    import atexit
+    atexit.register(motor_runner.detener_motor)
+
     iniciar_servicios()
     app.run(host=config.FLASK_HOST, port=config.FLASK_PORT,
             debug=False, use_reloader=False)

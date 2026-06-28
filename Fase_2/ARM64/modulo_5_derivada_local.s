@@ -138,14 +138,15 @@ llamar_leer_5:
 
 copiar_datos:
     // COPIAR DATOS AL BUFFER
-    mov x6, x24
+    mov x6, x24          // x6 = puntero al ultimo dato
     adr x4, datos_copia
     mov x5, x27
 
 copia_loop:
     cbz x5, copia_fin
-    ldr x9, [x6], #16
-    str x9, [x4], #8
+    ldr x9, [x6]         // leer dato actual
+    str x9, [x4], #8     // guardar en buffer
+    add x6, x6, #16      // avanzar al siguiente dato en el stack
     sub x5, x5, #1
     b copia_loop
 

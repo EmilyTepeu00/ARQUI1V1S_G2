@@ -52,49 +52,6 @@ def evaluar_estado_global(temp, suelo1, suelo2):
     return "NORMAL"
 
 
-def aplicar_logica_automatica(lecturas):
-    with _lock:
-        estado_sistema["gas"] = clasificar_gas(lecturas["gas"])
-
-    if estado_sistema["modo"] == "AUTOMATICO":
-        temp   = lecturas["temperatura"]
-        suelo1 = lecturas["hum_suelo1"]
-        suelo2 = lecturas["hum_suelo2"]
-        luz    = lecturas.get("luz", "NORMAL")
-        gas    = estado_sistema["gas"]
-
-        # Ventilador
-        if gas in ("GAS_ADVERTENCIA", "GAS_EMERGENCIA") or temp > config.UMBRAL_TEMP_ALTA:
-            estado_sistema["ventilador"] = "VENTILACION_ON"
-        else:
-            estado_sistema["ventilador"] = "VENTILACION_OFF"
-
-        # Luces
-        luz_baja = (luz == "BAJO") if isinstance(luz, str) else (luz < config.UMBRAL_LUZ_BAJA)
-        estado_sistema["luces"] = "ON" if luz_baja else "OFF"
-
-        # Riego
-        suelo1_seco = (suelo1 == "SECO") if isinstance(suelo1, str) else (suelo1 < config.UMBRAL_HUMEDAD_BAJA)
-        suelo2_seco = (suelo2 == "SECO") if isinstance(suelo2, str) else (suelo2 < config.UMBRAL_HUMEDAD_BAJA)
-        if suelo1_seco or suelo2_seco:
-            estado_sistema["riego"] = "RIEGO_ACTIVO"
-        else:
-            estado_sistema["riego"] = "RIEGO_OFF"
-
-        # Alarma
-        if gas == "GAS_EMERGENCIA":
-            estado_sistema["alarma"]     = "ON"
-            estado_sistema["ventilador"] = "VENTILACION_EMERGENCIA"
-
-    nuevo_global = evaluar_estado_global(
-        lecturas["temperatura"], lecturas["hum_suelo1"], lecturas["hum_suelo2"]
-    )
-    with _lock:
-        estado_sistema["global"] = nuevo_global
-
-    db.actualizar_estado_global(estado_sistema.copy())
-
-
 def procesar_comando(payload, origen="REMOTO"):
     accion = payload.get("accion", "").upper()
     valor  = payload.get("valor",  "").upper()
@@ -114,12 +71,16 @@ def procesar_comando(payload, origen="REMOTO"):
         if accion in ("RIEGO_AREA1", "RIEGO_AREA2"):
             estado_sistema["riego"] = "RIEGO_ACTIVO" if valor == "ON" else "RIEGO_OFF"
         elif accion == "VENTILADOR":
-            estado_sistema["ventilador"] = "VENTILACION_MANUAL" if valor == "ON" else "VENTILACION_OFF"
             if valor == "ON":
+                estado_sistema["ventilador"] = "VENTILACION_ON" if origen == "ARM64_AUTO" else "VENTILACION_MANUAL"
+            else:
+                estado_sistema["ventilador"] = "VENTILACION_OFF"
+            if valor == "ON" and origen != "ARM64_AUTO":
                 estado_sistema["modo"] = "MANUAL"
         elif accion == "LUCES":
             estado_sistema["luces"] = valor
-            estado_sistema["modo"]  = "MANUAL"
+            if origen != "ARM64_AUTO":
+                estado_sistema["modo"] = "MANUAL"
         elif accion == "ALARMA" and valor == "OFF":
             estado_sistema["alarma"] = "OFF"
         elif accion == "MODO":

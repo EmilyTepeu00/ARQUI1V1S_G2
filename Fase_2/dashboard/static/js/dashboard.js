@@ -129,43 +129,6 @@ async function actualizarHistorial() {
     } catch (e) {}
 }
 
-async function actualizarARM64() {
-    try {
-        const csv = await fetch('/api/csv').then(r => r.json());
-        document.getElementById('csvStatus').textContent =
-            csv.generado
-                ? `CSV: ${csv.filas} lectura(s) generadas`
-                : 'CSV: sin generar (solicita un analisis)';
-
-        const datos = await fetch('/api/arm64').then(r => r.json());
-        if (!datos || datos.length === 0) return;
-
-        datos.forEach(d => {
-            const tipo = d.tipo || d.MODULE;
-            if (tipo === 'WEIGHTED_MEAN') {
-                document.getElementById('arm64_media').textContent     = `Media Ponderada: ${d.WEIGHTED_MEAN || '--'}`;
-                document.getElementById('arm64_media_det').textContent = `Sum(X*W)/Sum(W) | SumX=${d.SUM_X || '--'} | SumW=${d.WEIGHT_SUM || '--'}`;
-            } else if (tipo === 'VARIANCE') {
-                document.getElementById('arm64_var').textContent     = `Varianza: ${d.VARIANCE || '--'} | StdDev: ${d.STD_DEV || '--'}`;
-                document.getElementById('arm64_var_det').textContent = `Media: ${d.MEAN || '--'}`;
-            } else if (tipo === 'ANOMALY_DETECTION') {
-                document.getElementById('arm64_anom').textContent = `${d.ANOMALIES || '--'} anomalias detectadas`;
-                const riesgo = d.SYSTEM_RISK || '--';
-                const rEl = document.getElementById('arm64_riesgo');
-                rEl.textContent = `Riesgo: ${riesgo}`;
-                rEl.className = `arm64-risk ${riesgo === 'HIGH' ? 'risk-alto' : riesgo === 'MEDIUM' ? 'risk-medio' : 'risk-bajo'}`;
-            } else if (tipo === 'PREDICTION') {
-                document.getElementById('arm64_pred').textContent     = `Proximo valor: ${d.NEXT_VALUE || '--'}`;
-                document.getElementById('arm64_pred_det').textContent = `Inicial=${d.INITIAL_VALUE || '--'} Final=${d.FINAL_VALUE || '--'} Cambio/ciclo=${d.AVG_CHANGE || '--'}`;
-            } else if (tipo === 'ADVANCED_TREND') {
-                const flecha = d.TREND === 'UP' ? '(subida)' : d.TREND === 'DOWN' ? '(bajada)' : '(estable)';
-                document.getElementById('arm64_tend').textContent     = `Tendencia: ${d.TREND || '--'} ${flecha}`;
-                document.getElementById('arm64_tend_det').textContent = `+${d.INCREMENTS || '--'} incrementos, -${d.DECREMENTS || '--'} decrementos, racha max: ${d.MAX_UP_STREAK || '--'}, diff acum: ${d.ACCUM_DIFF || '--'}`;
-            }
-        });
-    } catch (e) { console.error('Error actualizarARM64:', e); }
-}
-
 // DECISIONES DEL MOTOR ARM64 EN VIVO
 async function actualizarDecisiones() {
     try {
@@ -211,6 +174,26 @@ async function cmd(accion, valor) {
     } catch (e) {
         console.error('Error cmd:', e);
     }
+}
+
+const ORDEN_MODULOS = [
+    'modulo_1_media', 'modulo_1_rmse',
+    'modulo_2_varianza', 'modulo_2_regresion',
+    'modulo_3_anomalias', 'modulo_3_prediccion',
+    'modulo_4_prediccion', 'modulo_4_integral_error',
+    'modulo_5_tendecia', 'modulo_5_derivada_local'
+];
+
+function renderTarjetaModulo(r) {
+    let html = '<div style="background:#f1f5f9;padding:8px 12px;border-radius:4px;margin-bottom:6px;border-left:3px solid #2563eb;">';
+    html += '<strong>' + (r.modulo || 'modulo') + '</strong><br>';
+    for (var key in r) {
+        if (key !== 'modulo' && key !== 'tipo' && key !== 'variable' && key !== 'timestamp') {
+            html += '<span style="font-size:0.8rem;font-family:monospace;">' + key + '=' + r[key] + '</span><br>';
+        }
+    }
+    html += '</div>';
+    return html;
 }
 
 // ANALISIS HISTORICO
@@ -264,22 +247,35 @@ async function ejecutarAnalisisHistorico() {
         let html = '<div style="font-size:0.85rem;">';
         html += '<p><strong>Rango:</strong> ' + data.linea_inicial + ' - ' + data.linea_final + '</p>';
         html += '<p><strong>Columna:</strong> ' + data.columna + '</p>';
+        html += '<p style="color:#475569;"><strong>Modulos recibidos:</strong> ' + (data.resultados ? data.resultados.length : 0) + ' / 10</p>';
         html += '<hr style="margin:8px 0;">';
 
         if (data.resultados && data.resultados.length > 0) {
-            data.resultados.forEach(function(r) {
-                html += '<div style="background:#f1f5f9;padding:8px 12px;border-radius:4px;margin-bottom:6px;">';
-                html += '<strong>' + (r.tipo || r.modulo || 'Modulo') + '</strong><br>';
-                for (var key in r) {
-                    if (key !== 'modulo' && key !== 'tipo' && key !== 'variable' && key !== 'timestamp') {
-                        html += '<span style="font-size:0.75rem;color:#475569;">' + key + ':</span> ';
-                        html += '<span style="font-size:0.8rem;font-weight:500;">' + r[key] + '</span><br>';
-                    }
-                }
-                html += '</div>';
+            const resultadosOrdenados = data.resultados.slice().sort(function(a, b) {
+                let posA = ORDEN_MODULOS.indexOf(a.modulo);
+                let posB = ORDEN_MODULOS.indexOf(b.modulo);
+                if (posA === -1) posA = ORDEN_MODULOS.length;
+                if (posB === -1) posB = ORDEN_MODULOS.length;
+                return posA - posB;
+            });
+
+            resultadosOrdenados.forEach(function(r) {
+                html += renderTarjetaModulo(r);
             });
         } else {
             html += '<p style="color:#6c757d;">No se encontraron resultados</p>';
+        }
+
+        if (data.errores_parciales && data.errores_parciales.length > 0) {
+            html += '<hr style="margin:8px 0;">';
+            html += '<p style="color:#991b1b;font-weight:600;font-size:0.8rem;">Modulos con error (' + data.errores_parciales.length + '):</p>';
+            data.errores_parciales.forEach(function(e) {
+                html += '<div style="background:#fee2e2;padding:8px 12px;border-radius:4px;margin-bottom:6px;border-left:3px solid #dc2626;">';
+                html += '<strong>' + (e.modulo || 'Modulo') + '</strong><br>';
+                html += '<span style="font-size:0.75rem;color:#991b1b;">' + (e.error || 'ERROR') + '</span>: ';
+                html += '<span style="font-size:0.8rem;">' + (e.detail || '') + '</span>';
+                html += '</div>';
+            });
         }
 
         html += '</div>';
@@ -340,7 +336,6 @@ async function cicloCompleto() {
     graficasActualizadas++;
     if (graficasActualizadas % 2 === 0) await actualizarGraficas();
     if (graficasActualizadas % 4 === 0) await actualizarHistorial();
-    if (graficasActualizadas % 6 === 0) await actualizarARM64();
     if (graficasActualizadas % 6 === 0) await actualizarDecisiones();
 }
 
@@ -354,6 +349,5 @@ document.addEventListener('DOMContentLoaded', () => {
     cicloCompleto();
     actualizarGraficas();
     actualizarHistorial();
-    actualizarARM64();
     setInterval(cicloCompleto, 4000);
 });

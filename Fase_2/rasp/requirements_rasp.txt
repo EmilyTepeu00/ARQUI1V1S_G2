@@ -1,4 +1,6 @@
 paho-mqtt==1.6.1
 RPi.GPIO
-Adafruit_DHT
 smbus2
+pyserial
+adafruit-blinka
+adafruit-circuitpython-dht

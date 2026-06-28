@@ -61,8 +61,8 @@ LCD_ROWS       = 2
 # Umbrales
 UMBRAL_TEMP_ALTA       = 32.0
 UMBRAL_LUZ_BAJA        = 300   # LDR digital: 0=oscuro, 1=luz
-UMBRAL_GAS_EMERGENCIA = 75
-UMBRAL_GAS_ADVERTENCIA = 70
+UMBRAL_GAS_EMERGENCIA = 90
+UMBRAL_GAS_ADVERTENCIA = 80
 
 # Duración del riego (segundos)
 DURACION_RIEGO    = 10

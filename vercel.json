@@ -1,14 +1,26 @@
 {
   "builds": [
     {
-      "src": "Fase_2/dashboard/**",
+      "src": "Fase_2/dashboard/templates/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "Fase_2/dashboard/static/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/",
       "dest": "/Fase_2/dashboard/templates/index.html"
+    },
+    {
+      "src": "/login",
+      "dest": "/Fase_2/dashboard/templates/login.html"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/Fase_2/dashboard/static/$1"
     }
   ]
 }

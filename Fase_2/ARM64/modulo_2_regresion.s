@@ -193,14 +193,14 @@ armar_salida:
     bl  copiar_a_buffer
 
   // --- IDENTIFICAR EL NOMBRE DE LA COLUMNA  ---
-    cmp x11, #2; beq col_es_1
-    cmp x11, #3; beq col_es_2
-    cmp x11, #4; beq col_es_3
-    cmp x11, #5; beq col_es_4
-    cmp x11, #6; beq col_es_5
-    cmp x11, #7; beq col_es_6
-    cmp x11, #8; beq col_es_7
-    cmp x11, #9; beq col_es_8
+    cmp x11, #1; beq col_es_1
+    cmp x11, #2; beq col_es_2
+    cmp x11, #3; beq col_es_3
+    cmp x11, #4; beq col_es_4
+    cmp x11, #5; beq col_es_5
+    cmp x11, #6; beq col_es_6
+    cmp x11, #7; beq col_es_7
+    cmp x11, #8; beq col_es_8
     // Si la columna no está en el diccionario
     adr x0, col_unk; b escribir_col 
 

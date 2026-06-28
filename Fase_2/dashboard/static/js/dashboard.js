@@ -201,6 +201,7 @@ async function ejecutarAnalisisHistorico() {
     const inicio = parseInt(document.getElementById('lineaInicio').value);
     const fin = parseInt(document.getElementById('lineaFin').value);
     const columna = document.getElementById('columnaSelect').value;
+    const modulo = document.getElementById('moduloSelect').value;
 
     const resultadoDiv = document.getElementById('analisisResultado');
     const contenidoDiv = document.getElementById('analisisContenido');
@@ -229,7 +230,8 @@ async function ejecutarAnalisisHistorico() {
             body: JSON.stringify({
                 linea_inicial: inicio,
                 linea_final: fin,
-                columna: columna
+                columna: columna,
+                modulo: modulo
             })
         });
 
@@ -247,35 +249,23 @@ async function ejecutarAnalisisHistorico() {
         let html = '<div style="font-size:0.85rem;">';
         html += '<p><strong>Rango:</strong> ' + data.linea_inicial + ' - ' + data.linea_final + '</p>';
         html += '<p><strong>Columna:</strong> ' + data.columna + '</p>';
-        html += '<p style="color:#475569;"><strong>Modulos recibidos:</strong> ' + (data.resultados ? data.resultados.length : 0) + ' / 10</p>';
+        html += '<p><strong>Modulo:</strong> ' + data.modulo + '</p>';
         html += '<hr style="margin:8px 0;">';
 
         if (data.resultados && data.resultados.length > 0) {
-            const resultadosOrdenados = data.resultados.slice().sort(function(a, b) {
-                let posA = ORDEN_MODULOS.indexOf(a.modulo);
-                let posB = ORDEN_MODULOS.indexOf(b.modulo);
-                if (posA === -1) posA = ORDEN_MODULOS.length;
-                if (posB === -1) posB = ORDEN_MODULOS.length;
-                return posA - posB;
-            });
-
-            resultadosOrdenados.forEach(function(r) {
-                html += renderTarjetaModulo(r);
+            data.resultados.forEach(function(r) {
+                html += '<div style="background:#f1f5f9;padding:8px 12px;border-radius:4px;margin-bottom:6px;">';
+                html += '<strong>' + (r.tipo || r.modulo || 'Modulo') + '</strong><br>';
+                for (var key in r) {
+                    if (key !== 'modulo' && key !== 'tipo' && key !== 'variable' && key !== 'timestamp') {
+                        html += '<span style="font-size:0.75rem;color:#475569;">' + key + ':</span> ';
+                        html += '<span style="font-size:0.8rem;font-weight:500;">' + r[key] + '</span><br>';
+                    }
+                }
+                html += '</div>';
             });
         } else {
             html += '<p style="color:#6c757d;">No se encontraron resultados</p>';
-        }
-
-        if (data.errores_parciales && data.errores_parciales.length > 0) {
-            html += '<hr style="margin:8px 0;">';
-            html += '<p style="color:#991b1b;font-weight:600;font-size:0.8rem;">Modulos con error (' + data.errores_parciales.length + '):</p>';
-            data.errores_parciales.forEach(function(e) {
-                html += '<div style="background:#fee2e2;padding:8px 12px;border-radius:4px;margin-bottom:6px;border-left:3px solid #dc2626;">';
-                html += '<strong>' + (e.modulo || 'Modulo') + '</strong><br>';
-                html += '<span style="font-size:0.75rem;color:#991b1b;">' + (e.error || 'ERROR') + '</span>: ';
-                html += '<span style="font-size:0.8rem;">' + (e.detail || '') + '</span>';
-                html += '</div>';
-            });
         }
 
         html += '</div>';

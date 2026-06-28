@@ -122,9 +122,9 @@
             <div class="card">
                 <h3>Análisis Histórico ARM64</h3>
                 <p style="font-size:0.8rem;color:#6c757d;margin-bottom:12px;">
-                    Selecciona el rango de líneas y columna a analizar. El CSV se genera con las últimas "Línea Final" lecturas disponibles en Mongo.
+                    Selecciona el rango de líneas, columna y módulo a analizar
                 </p>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:end;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Línea Inicial</label>
                         <input type="number" id="lineaInicio" value="1" min="1" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
@@ -142,6 +142,25 @@
                             <option value="HUM_SUELO_2">Humedad Suelo 2</option>
                             <option value="LUZ">Luz</option>
                             <option value="GAS">Gas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:2px;">Módulo</label>
+                        <select id="moduloSelect" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:0.9rem;">
+                            <optgroup label="Fase 1">
+                                <option value="WEIGHTED_MEAN">Media Ponderada</option>
+                                <option value="VARIANCE">Varianza</option>
+                                <option value="ANOMALY_DETECTION">Detección de Anomalías</option>
+                                <option value="PREDICTION">Predicción Lineal</option>
+                                <option value="ADVANCED_TREND">Tendencia</option>
+                            </optgroup>
+                            <optgroup label="Fase 2">
+                                <option value="RMSE">RMSE</option>
+                                <option value="LINEAR_REGRESSION">Regresión Lineal</option>
+                                <option value="PREDICTION_FUTURE">Predicción Futura</option>
+                                <option value="INTEGRAL_ERROR">Integral del Error</option>
+                                <option value="LOCAL_DERIVATIVE">Derivada Local</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>

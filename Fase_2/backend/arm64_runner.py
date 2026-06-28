@@ -272,6 +272,52 @@ def guardar_en_mongo(resultados):
         print(f"[ARM64] {len(resultados)} resultados guardados en MongoDB")
 
 
+def guardar_resultados_historicos(resultados, errores, columna, linea_inicial, linea_final):
+    ts = datetime.now().isoformat()
+    rango = {"linea_inicial": linea_inicial, "linea_final": linea_final}
+
+    for r in resultados:
+        modulo_nombre = r.get("modulo", "?")
+        crudo = {k: v for k, v in r.items()
+                 if k not in ("modulo", "tipo", "variable", "timestamp")}
+
+        documento = {
+            "timestamp":    ts,
+            "source":       "historical_analyzer",
+            "module":       modulo_nombre,
+            "input":        {"archivo": "lecturas.csv", "columna": columna},
+            "range":        rango,
+            "column":       columna,
+            "result":       crudo,
+            "decision":     None,
+            "risk":         None,
+            "status":       crudo.get("STATUS", "OK"),
+            "error_detail": None,
+        }
+        db.guardar(config.COL_ARM64_RESULTS, documento)
+
+    for e in errores:
+        documento = {
+            "timestamp":    ts,
+            "source":       "historical_analyzer",
+            "module":       e.get("modulo", "?"),
+            "input":        {"archivo": "lecturas.csv", "columna": columna},
+            "range":        rango,
+            "column":       columna,
+            "result":       {},
+            "decision":     None,
+            "risk":         None,
+            "status":       "ERROR",
+            "error_detail": f"{e.get('error','?')}: {e.get('detail','')}",
+        }
+        db.guardar(config.COL_ARM64_RESULTS, documento)
+
+    total = len(resultados) + len(errores)
+    if total:
+        print(f"[ARM64] {total} documento(s) del analisis con rango guardados en MongoDB "
+              f"({len(resultados)} OK, {len(errores)} con error)")
+
+
 def _copiar_csv():
     try:
         with open(CSV_BACKEND, "r") as src:

@@ -201,6 +201,7 @@ def api_analisis_historico():
         linea_inicial = datos.get("linea_inicial", 1)
         linea_final = datos.get("linea_final", 30)
         columna = datos.get("columna", "TEMP").upper()
+        modulo_tipo = datos.get("modulo", "").upper()
 
         # Validaciones de rango
         if linea_inicial < 1:
@@ -224,6 +225,14 @@ def api_analisis_historico():
                 "detail": f"Columna '{columna}' no valida. Opciones: {list(arm64_runner.VARIABLES.keys())}"
             }), 400
 
+        tipos_validos = [m["tipo"] for m in arm64_runner.MODULOS]
+        if modulo_tipo not in tipos_validos:
+            return jsonify({
+                "status": "ERROR",
+                "error": "INVALID_MODULE",
+                "detail": f"Modulo '{modulo_tipo}' no valido. Opciones: {tipos_validos}"
+            }), 400
+
         # Si Mongo no tiene suficientes, esto lanza DatosInsuficientesError.
         try:
             csv_manager.generar_csv_para_rango(linea_final)
@@ -245,9 +254,9 @@ def api_analisis_historico():
             col_index = arm64_runner.VARIABLES.get(columna, 1)
 
             arm64_runner.compilar_modulos()
-            errores_modulos = arm64_runner.ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final)
+            errores_modulos = arm64_runner.ejecutar_modulo_unico(modulo_tipo, col_index, linea_inicial, linea_final)
 
-            resultados = arm64_runner.leer_resultados(columna)
+            resultados = arm64_runner.leer_resultado_unico(modulo_tipo, columna)
 
             arm64_runner.guardar_resultados_historicos(
                 resultados, errores_modulos, columna, linea_inicial, linea_final
@@ -266,6 +275,7 @@ def api_analisis_historico():
                 "status": "OK",
                 "resultados": resultados,
                 "columna": columna,
+                "modulo": modulo_tipo,
                 "linea_inicial": linea_inicial,
                 "linea_final": linea_final,
                 "errores_parciales": errores_modulos,  # modulos que fallaron aunque otros si dieron resultado

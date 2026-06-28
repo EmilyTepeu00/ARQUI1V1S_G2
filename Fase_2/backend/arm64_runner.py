@@ -51,7 +51,7 @@ MODULOS = [
         "fuente":  "modulo_4_prediccion.s",
         "binario": "modulo_4_prediccion",
         "salida":  "resultado_prediccion.txt",
-        "tipo":    "SIMPLE_PREDICTION",
+        "tipo":    "PREDICTION",
     },
     {
         "nombre":  "modulo_5_tendecia",
@@ -71,22 +71,22 @@ MODULOS = [
         "nombre":  "modulo_2_regresion",
         "fuente":  "modulo_2_regresion.s",
         "binario": "modulo_2_regresion",
-        "salida":  "modulo_2_regresion.txt",
+        "salida":  "resultado_regresion.txt",
         "tipo":    "LINEAR_REGRESSION",
     },
     {
         "nombre":  "modulo_3_prediccion",
         "fuente":  "modulo_3_prediccion.s",
         "binario": "modulo_3_prediccion",
-        "salida":  "resultado_prediccion_regresion.txt",
-        "tipo":    "PREDICTION_REGRESSION",
+        "salida":  "resultado_2_prediccion.txt",
+        "tipo":    "PREDICTION_FUTURE",
     },
     {
         "nombre":  "modulo_4_integral_error",
         "fuente":  "modulo_4_integral_error.s",
         "binario": "modulo_4_integral_error",
         "salida":  "resultado_integral.txt",
-        "tipo":    "ERROR_INTEGRAL",
+        "tipo":    "INTEGRAL_ERROR",
     },
     {
         "nombre":  "modulo_5_derivada_local",
@@ -219,6 +219,68 @@ def ejecutar_modulos_con_rango(col_index, linea_inicial, linea_final):
             errores.append({"modulo": m["nombre"], "error": "TIMEOUT", "detail": "El modulo no respondio a tiempo"})
 
     return errores
+
+# Ejecutar solo el modulo seleccionado
+def ejecutar_modulo_unico(tipo_modulo, col_index, linea_inicial, linea_final):
+    print(f"[ARM64] Ejecutando modulo unico tipo={tipo_modulo}, columna={col_index}, rango={linea_inicial}-{linea_final}...")
+
+    modulo = next((m for m in MODULOS if m["tipo"] == tipo_modulo), None)
+    if modulo is None:
+        return [{"modulo": "?", "error": "INVALID_MODULE", "detail": f"Modulo '{tipo_modulo}' no reconocido"}]
+
+    col_str = str(col_index)
+    inicio_str = str(linea_inicial)
+    fin_str = str(linea_final)
+    archivo_str = "lecturas.csv"
+
+    bin_ = os.path.join(ARM64_DIR, modulo["binario"])
+    if not os.path.exists(bin_):
+        print(f"[ARM64] Binario {modulo['binario']} no existe")
+        return [{"modulo": modulo["nombre"], "error": "BINARY_NOT_FOUND", "detail": bin_}]
+
+    try:
+        # binario archivo inicio fin columna
+        r = subprocess.run(
+            [bin_, archivo_str, inicio_str, fin_str, col_str],
+            capture_output=True, text=True, cwd=ARM64_DIR, timeout=15
+        )
+        if r.returncode == 0:
+            print(f"[ARM64] {modulo['nombre']} ejecutado OK (rango {linea_inicial}-{linea_final})")
+            if r.stdout:
+                print(r.stdout)
+            return []
+        else:
+            salida = r.stdout or r.stderr or ""
+            detalle_error = _parsear_error_estructurado(salida)
+            detalle_error["modulo"] = modulo["nombre"]
+            print(f"[ARM64] {modulo['nombre']} error (rc={r.returncode}): {detalle_error}")
+            return [detalle_error]
+    except FileNotFoundError:
+        print(f"[ARM64] Binario no encontrado: {bin_}")
+        return [{"modulo": modulo["nombre"], "error": "BINARY_NOT_FOUND", "detail": bin_}]
+    except subprocess.TimeoutExpired:
+        print(f"[ARM64] Timeout en {modulo['nombre']}")
+        return [{"modulo": modulo["nombre"], "error": "TIMEOUT", "detail": "El modulo no respondio a tiempo"}]
+
+
+# Lee el resultado .txt del modulo seleccionado
+def leer_resultado_unico(tipo_modulo, variable):
+    modulo = next((m for m in MODULOS if m["tipo"] == tipo_modulo), None)
+    if modulo is None:
+        return []
+
+    ruta = os.path.join(ARM64_DIR, modulo["salida"])
+    datos = parsear_txt(ruta)
+    if not datos:
+        return []
+
+    datos["modulo"]    = modulo["nombre"]
+    datos["tipo"]      = modulo["tipo"]
+    datos["variable"]  = variable
+    datos["timestamp"] = datetime.now().isoformat()
+    print(f"[ARM64] Resultado {modulo['nombre']}: {datos}")
+    return [datos]
+
 
 def _parsear_error_estructurado(salida):
     """Convierte el bloque STATUS=ERROR/ERROR=.../DETAIL=... (seccion

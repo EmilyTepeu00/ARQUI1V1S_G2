@@ -309,15 +309,15 @@ Agrega un salto de línea (`\n`) al buffer de salida en la posición actual.
 Llamada esperada:
 
 ```text
-./modulo_3_prediccion lecturas.csv 1 30 2 5
+./modulo_3_prediccion lecturas.csv 1 10 3 
 ```
 
 Donde:
 
 - `lecturas.csv` = archivo de entrada
 - `1` = línea inicial del rango
-- `30` = línea final del rango
-- `2` = columna a analizar (posición dentro del CSV)
+- `10` = línea final del rango
+- `3` = columna a analizar (posición dentro del CSV)
 - `5` = K, cantidad de lecturas futuras a predecir (opcional, por defecto 5)
 
 ---
@@ -334,14 +334,14 @@ Ejemplo (caso exitoso):
 
 ```text
 MODULE=PREDICTION
-COLUMN=2
+COLUMN=3
 WINDOW_START=1
-WINDOW_END=30
-COUNT=30
+WINDOW_END=10
+COUNT=10
 K=5
-SLOPE_X100=-42
-INTERCEPT_X100=6920
-PREDICTED_5=27
+SLOPE_X100=98
+INTERCEPT_X100=3869
+PREDICTED_5=53
 STATUS=OK
 ```
 
@@ -376,34 +376,39 @@ Descripción de cada campo:
 # 12. Evidencia de Depuración con GDB
 
 ## Captura 1 — Breakpoint en _start
-_(completar con captura propia)_
+![Captura 1](evidencia_gdb/captura1.png)
 
 ---
 
 ## Captura 2 — Lectura de argumentos, incluyendo K
-_(completar: mostrar x12/x13/x11/x14 con linea_inicial, linea_final, columna y K ya convertidos)_
+![Captura 2](evidencia_gdb/captura2.png)
 
 ---
 
 ## Captura 3 — Entrada a read_column_to_stack
-_(completar: mostrar el rango y columna pasados a la función)_
+![Captura 3](evidencia_gdb/captura3.png)
 
 ---
 
 ## Captura 4 — Primera iteración del ciclo de acumulación
-_(completar: mostrar x5/x6/x7/x8/x10 en la primera iteración de `loop_acum`)_
+![Captura 4](evidencia_gdb/captura4.png)
 
 ---
 
 ## Captura 5 — Cálculo de pendiente e intercepto
-_(completar: mostrar x13 (numerador), x14 (denominador), x15 (SLOPE_X100) y x16 (INTERCEPT_X100))_
+![Captura 5](evidencia_gdb/captura5.png)
 
 ---
 
 ## Captura 6 — Cálculo de la predicción final
-_(completar: mostrar x17 (X_FUTURE) y el valor final de Y_PRED)_
+![Captura 6](evidencia_gdb/captura6.png)
 
 ---
 
 ## Captura 7 — Programa terminado exitosamente
-_(completar: mostrar el contenido final de resultado_2_prediccion.txt)_
+![Captura 7](evidencia_gdb/captura7.png)
+
+---
+
+## Captura 8 — Resultados del programa
+![Captura 8](evidencia_gdb/captura8.png)

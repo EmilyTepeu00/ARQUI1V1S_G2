@@ -5,7 +5,7 @@
 - **Proyecto:** Invernadero Inteligente IoT
 - **Curso:** Arquitectura y Organización de Computadoras y Ensambladores 1
 - **Archivo fuente:** modulo_1_rmse.s
-- **Responsable:** Alison Melysa Peréz Blanco
+- **Responsable:** Alison Melysa Pérez Blanco
 - **Variable analizada:** columna seleccionada por el usuario (parámetro de entrada)
 - **Cantidad de datos procesados:** variable, según rango línea inicial - línea final indicado por el usuario
 
@@ -400,34 +400,34 @@ Descripción de cada campo:
 # 12. Evidencia de Depuración con GDB
 
 ## Captura 1 — Breakpoint en _start
-_(completar con captura propia)_
+![Captura 1](evidencia_gdb/Fase2/gdb_1_1.png)
 
 ---
 
 ## Captura 2 — Apertura anticipada del archivo de salida
-_(completar: mostrar x0 con el descriptor de archivo devuelto por `openat`)_
+![Captura 2](evidencia_gdb/Fase2/gdb_1_2.png)
 
 ---
 
 ## Captura 3 — Lectura de argumentos
-_(completar: mostrar x12/x13/x11 con linea_inicial, linea_final y columna ya convertidos)_
+![Captura 3](evidencia_gdb/Fase2/gdb_1_3.png)
 
 ---
 
 ## Captura 4 — Entrada a read_column_to_stack
-_(completar: mostrar el rango y columna pasados a la función)_
+![Captura 4](evidencia_gdb/Fase2/gdb_1_4.png)
 
 ---
 
 ## Captura 5 — Primera iteración del ciclo de suma
-_(completar: mostrar x7/x4/x29 en la primera iteración de `rmse_ciclo_suma`)_
+![Captura 5](evidencia_gdb/Fase2/gdb_1_5.png)
 
 ---
 
 ## Captura 6 — Cálculo de raíz cuadrada entera
-_(completar: mostrar x4 (candidato) avanzando dentro de `raiz_entera_ciclo`)_
+![Captura 6](evidencia_gdb/Fase2/gdb_1_6.png)
 
 ---
 
 ## Captura 7 — Programa terminado exitosamente
-_(completar: mostrar el contenido final de resultado_rmse.txt)_
+![Captura 7](evidencia_gdb/Fase2/gdb_1_7.png)

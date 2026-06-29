@@ -376,39 +376,39 @@ Descripción de cada campo:
 # 12. Evidencia de Depuración con GDB
 
 ## Captura 1 — Breakpoint en _start
-![Captura 1](evidencia_gdb/captura1.png)
+![Captura 1](evidencia_gdb/Fase2/captura1.png)
 
 ---
 
 ## Captura 2 — Lectura de argumentos, incluyendo K
-![Captura 2](evidencia_gdb/captura2.png)
+![Captura 2](evidencia_gdb/Fase2/captura2.png)
 
 ---
 
 ## Captura 3 — Entrada a read_column_to_stack
-![Captura 3](evidencia_gdb/captura3.png)
+![Captura 3](evidencia_gdb/Fase2/captura3.png)
 
 ---
 
 ## Captura 4 — Primera iteración del ciclo de acumulación
-![Captura 4](evidencia_gdb/captura4.png)
+![Captura 4](evidencia_gdb/Fase2/captura4.png)
 
 ---
 
 ## Captura 5 — Cálculo de pendiente e intercepto
-![Captura 5](evidencia_gdb/captura5.png)
+![Captura 5](evidencia_gdb/Fase2/captura5.png)
 
 ---
 
 ## Captura 6 — Cálculo de la predicción final
-![Captura 6](evidencia_gdb/captura6.png)
+![Captura 6](evidencia_gdb/Fase2/captura6.png)
 
 ---
 
 ## Captura 7 — Programa terminado exitosamente
-![Captura 7](evidencia_gdb/captura7.png)
+![Captura 7](evidencia_gdb/Fase2/captura7.png)
 
 ---
 
 ## Captura 8 — Resultados del programa
-![Captura 8](evidencia_gdb/captura8.png)
+![Captura 8](evidencia_gdb/Fase2/captura8.png)

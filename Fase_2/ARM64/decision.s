@@ -3,9 +3,9 @@
 .data
 
 //Umbrales
-GAS_ALTO:       .quad 90
-GAS_ADVERTENCIA: .quad 80
-GAS_AMP_ALTA:   .quad 80
+GAS_ALTO:       .quad 105
+GAS_ADVERTENCIA: .quad 100
+GAS_AMP_ALTA:   .quad 100
 SOIL_BAJO:      .quad 700   
 LUZ_BAJA:       .quad 1
 TEMP_ALTA:      .quad 32
